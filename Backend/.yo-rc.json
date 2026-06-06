@@ -1,0 +1,32 @@
+{
+  "generator-jhipster": {
+    "applicationType": "monolith",
+    "authenticationType": "jwt",
+    "baseName": "backend",
+    "buildTool": "maven",
+    "cacheProvider": "caffeine",
+    "clientFramework": "react",
+    "clientTestFrameworks": [],
+    "clientTheme": "none",
+    "creationTimestamp": 1776749526074,
+    "databaseType": "sql",
+    "devDatabaseType": "postgresql",
+    "enableHibernateCache": false,
+    "enableTranslation": false,
+    "entities": [],
+    "feignClient": null,
+    "jhipsterVersion": "8.11.0",
+    "jwtSecretKey": "OTk1YzM3NDBmZGI1ZGMxNjM4ZDViYjEzYThjMjlhYzJkN2ViNTI2YTlkNzg3YWI4Y2FhNTBkMjRkYmIyNTlhNzdlMzFlMTIwMTA1MDQ4MDgwYzNiMzcwMDAzYmJmYjM5NWU1NDE0Yjg5MGExZmRhZjJhNmE1YTYxOTcyYWQ2OGM=",
+    "microfrontend": null,
+    "microfrontends": [],
+    "nativeLanguage": "en",
+    "packageName": "hospital",
+    "prodDatabaseType": "postgresql",
+    "reactive": false,
+    "serverPort": null,
+    "serviceDiscoveryType": null,
+    "syncUserWithIdp": null,
+    "testFrameworks": [],
+    "withAdminUi": true
+  }
+}

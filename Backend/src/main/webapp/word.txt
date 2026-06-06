@@ -1,0 +1,142 @@
+Bảng 2.1: Bảng jhi_authority
+
+Field         DataType      Null   Constraint   Content
+name          varchar(50)   No     Primary Key  Tên quyền
+
+Bảng 2.2: Bảng jhi_user
+
+Field               DataType       Null   Constraint                     Content
+id                  bigint         No     Primary Key                    Mã người dùng
+login               varchar(50)    No     Unique                         Tên đăng nhập
+password_hash       varchar(60)    No                                   Mật khẩu đã mã hóa
+first_name          varchar(50)    Yes                                  Họ
+last_name           varchar(50)    Yes                                  Tên
+email               varchar(191)   Yes    Unique                         Email
+image_url           varchar(256)   Yes                                  Ảnh đại diện
+activated           boolean        No                                    Trạng thái kích hoạt
+lang_key            varchar(10)    Yes                                  Ngôn ngữ
+activation_key      varchar(20)    Yes                                  Mã kích hoạt
+reset_key           varchar(20)    Yes                                  Mã đặt lại mật khẩu
+reset_date          timestamp      Yes                                  Thời gian đặt lại mật khẩu
+created_by          varchar(50)    No                                    Người tạo
+created_date        timestamp      Yes                                  Ngày tạo
+last_modified_by    varchar(50)    Yes                                  Người cập nhật gần nhất
+last_modified_date  timestamp      Yes                                  Ngày cập nhật gần nhất
+
+Bảng 2.3: Bảng jhi_user_authority
+
+Field            DataType      Null   Constraint   Content
+user_id          bigint        No     PK, FK       Mã người dùng
+authority_name    varchar(50)   No     PK, FK       Mã quyền
+
+Bảng 2.4: Bảng specialty
+
+Field           DataType       Null   Constraint   Content
+id              bigint         No     Primary Key  Mã chuyên khoa
+name            varchar(255)   No                  Tên chuyên khoa
+vietnam_name    varchar(255)   Yes                 Tên tiếng Việt
+icon            varchar(255)   Yes                 Biểu tượng
+description     varchar(255)   Yes                 Mô tả
+
+Bảng 2.5: Bảng hospital
+
+Field           DataType        Null   Constraint   Content
+id              bigint          No     Primary Key  Mã bệnh viện
+name            varchar(255)    No                  Tên bệnh viện
+address         varchar(255)    Yes                 Địa chỉ
+phone           varchar(255)    Yes                 Số điện thoại
+email           varchar(255)    Yes                 Email
+avatar          varchar(255)    Yes                 Ảnh đại diện
+rating          decimal(21,2)   Yes                 Điểm đánh giá
+review_count    integer         Yes                 Số lượt đánh giá
+description     varchar(255)    Yes                 Mô tả
+
+Bảng 2.6: Bảng doctor
+
+Field           DataType        Null   Constraint   Content
+id              bigint          No     Primary Key  Mã bác sĩ
+full_name       varchar(255)    No                  Họ và tên bác sĩ
+email           varchar(255)    Yes                 Email
+phone_number    varchar(20)     Yes                 Số điện thoại
+bio             text            Yes                 Giới thiệu
+avatar          varchar(255)    Yes                 Ảnh đại diện
+experience      integer         Yes                 Số năm kinh nghiệm
+license         varchar(255)    Yes                 Số giấy phép
+price           bigint          Yes                 Giá khám
+rating          decimal(21,2)   Yes                 Điểm đánh giá
+review_count    integer         Yes                 Số lượt đánh giá
+specialty_id    bigint          No     Foreign key  Mã chuyên khoa
+hospital_id     bigint          No     Foreign key  Mã bệnh viện
+
+Bảng 2.7: Bảng schedule
+
+Field           DataType    Null   Constraint   Content
+id              bigint      No     Primary Key  Mã lịch làm việc
+doctor_id       bigint      No     Foreign key  Mã bác sĩ
+work_date       date        No                  Ngày làm việc
+start_time      time(6)     No                  Giờ bắt đầu
+end_time        time(6)     No                  Giờ kết thúc
+
+Bảng 2.8: Bảng time_slot
+
+Field           DataType    Null   Constraint                    Content
+id              bigint      No     Primary Key                   Mã khung giờ
+schedule_id     bigint      No     Foreign key                   Mã lịch làm việc
+slot_time       time(6)     No                                  Thời gian khung giờ
+is_booked       boolean     Yes    Default = false               Trạng thái đã đặt
+
+Ràng buộc bổ sung:
+- Unique constraint trên (schedule_id, slot_time)
+
+Bảng 2.9: Bảng appointment
+
+Field              DataType       Null   Constraint   Content
+id                 bigint         No     Primary Key  Mã lịch hẹn
+appointment_date   date           No                  Ngày hẹn
+appointment_time   time           No                  Giờ hẹn
+status             varchar(255)   Yes                 Trạng thái
+reason             varchar(255)   Yes                 Lý do khám
+notes              varchar(255)   Yes                 Ghi chú
+price              bigint         Yes                 Giá khám
+payment_status     varchar(20)    Yes                 Trạng thái thanh toán
+created_at         timestamp      Yes                 Ngày tạo
+updated_at         timestamp      Yes                 Ngày cập nhật
+user_id            bigint         No     Foreign key  Mã người dùng
+doctor_id          bigint         No     Foreign key  Mã bác sĩ
+hospital_id        bigint         No     Foreign key  Mã bệnh viện
+
+Bảng 2.10: Bảng medical_record
+
+Field            DataType   Null   Constraint   Content
+id               bigint     No     Primary Key  Mã hồ sơ
+diagnosis        text       Yes                 Chẩn đoán
+treatment        text       Yes                 Điều trị
+notes            text       Yes                 Ghi chú
+created_at       timestamp  Yes                 Ngày tạo
+updated_at       timestamp  Yes                 Ngày cập nhật
+user_id          bigint     No     Foreign key  Mã người dùng
+appointment_id   bigint     Yes    Foreign key  Mã lịch hẹn
+doctor_id        bigint     Yes    Foreign key  Mã bác sĩ
+
+Bảng 2.11: Bảng review
+
+Field         DataType       Null   Constraint   Content
+id            bigint         No     Primary Key  Mã đánh giá
+rating        integer        No                  Số sao
+comment       varchar(255)   Yes                 Bình luận
+created_at    timestamp      Yes                 Ngày tạo
+updated_at    timestamp      Yes                 Ngày cập nhật
+user_id       bigint         No     Foreign key  Mã người dùng
+doctor_id     bigint         No     Foreign key  Mã bác sĩ
+
+Bảng 2.12: Bảng payment
+
+Field             DataType       Null   Constraint   Content
+id                bigint         No     Primary Key  Mã thanh toán
+appointment_id    bigint         No     Foreign key  Mã lịch hẹn
+user_id           bigint         No     Foreign key  Mã người dùng
+amount            bigint         No                  Số tiền
+payment_method    varchar(50)    Yes                 Phương thức thanh toán
+status            varchar(20)    Yes                 Trạng thái
+transaction_id    varchar(100)   Yes                 Mã giao dịch
+created_at        timestamp      Yes                 Ngày tạo
