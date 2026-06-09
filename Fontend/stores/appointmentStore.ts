@@ -30,6 +30,7 @@ interface AppointmentStore {
     newDate: string,
     newSlot: string
   ) => Promise<void>;
+  processPayment: (id: string, method: string) => Promise<any>;
   clearError: () => void;
 }
 
@@ -137,6 +138,32 @@ export const useAppointmentStore = create<AppointmentStore>((set) => ({
         isLoading: false,
         error:
           error.response?.data?.message || 'Failed to reschedule appointment',
+      });
+      throw error;
+    }
+  },
+
+  processPayment: async (id, method) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await apiService.initiatePayment(id, method);
+      
+      // Update local state
+      set((state) => ({
+        isLoading: false,
+        appointments: state.appointments.map((apt) =>
+          String(apt.id) === String(id) ? { ...apt, paymentStatus: 'PAID' } : apt
+        ),
+        currentAppointment: state.currentAppointment && String(state.currentAppointment.id) === String(id)
+          ? { ...state.currentAppointment, paymentStatus: 'PAID' }
+          : state.currentAppointment
+      }));
+      
+      return response;
+    } catch (error: any) {
+      set({
+        isLoading: false,
+        error: error.response?.data?.message || 'Payment initiation failed',
       });
       throw error;
     }

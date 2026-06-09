@@ -17,8 +17,10 @@ import {
   Star,
   Check,
   X,
+  CreditCard,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { PaymentModal } from '@/components/PaymentModal';
 
 export default function AppointmentDetailPage() {
   const params = useParams();
@@ -41,6 +43,7 @@ export default function AppointmentDetailPage() {
   const [newSlot, setNewSlot] = useState('');
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [review, setReview] = useState({ rating: 5, comment: '' });
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -136,13 +139,23 @@ export default function AppointmentDetailPage() {
       <main className="min-h-screen bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 py-12">
           {/* Header */}
-          <Button
-            variant="outline"
-            onClick={() => router.back()}
-            className="mb-6"
-          >
-            ← Back
-          </Button>
+          <div className="flex justify-between items-center mb-6">
+            <Button
+              variant="outline"
+              onClick={() => router.back()}
+            >
+              ← Back
+            </Button>
+            {currentAppointment.status === 'CONFIRMED' && currentAppointment.paymentStatus !== 'PAID' && (
+              <Button 
+                onClick={() => setIsPaymentModalOpen(true)}
+                className="bg-slate-900 hover:bg-slate-800 text-white gap-2"
+              >
+                <CreditCard size={18} />
+                Pay Now
+              </Button>
+            )}
+          </div>
 
           {/* Status Badge */}
           <div className="flex items-center gap-4 mb-8">
@@ -435,6 +448,11 @@ export default function AppointmentDetailPage() {
             </Card>
           )}
         </div>
+        <PaymentModal 
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          appointment={currentAppointment}
+        />
       </main>
     </>
   );

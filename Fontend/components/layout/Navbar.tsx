@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { useAppointmentStore } from '@/stores/appointmentStore';
+import { useNotificationStore } from '@/stores/notificationStore';
 import { Button } from '@/components/ui/button';
 import { Menu, X, LogOut, Bell, Calendar, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -11,10 +12,19 @@ import { useState, useEffect } from 'react';
 export function Navbar() {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
-  const { appointments, fetchAppointments } = useAppointmentStore();
+  const { fetchAppointments } = useAppointmentStore();
+  const { 
+    notifications: storeNotifications, 
+    markAsRead, 
+    markAllAsRead, 
+    getUnreadCount 
+  } = useNotificationStore();
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotifyOpen, setIsNotifyOpen] = useState(false);
-  
+
+  const unreadCount = getUnreadCount();
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchAppointments();
@@ -28,15 +38,13 @@ export function Navbar() {
     router.push('/');
   };
 
-  const notifications = appointments.filter((apt) => {
-    if (apt.status === 'COMPLETED' || apt.status === 'CANCELLED') return false;
-    try {
-      const aptDate = new Date(`${apt.appointmentDate}T${apt.appointmentTime}`);
-      const now = new Date();
-      const diff = aptDate.getTime() - now.getTime();
-      return diff > 0 && diff < 48 * 60 * 60 * 1000; // Within 48h
-    } catch (e) { return false; }
-  });
+  const handleNotificationClick = (n: any) => {
+    markAsRead(n.id);
+    if (n.appointmentId) {
+      router.push(`/appointments/${n.appointmentId}`);
+      setIsNotifyOpen(false);
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm">
@@ -75,32 +83,65 @@ export function Navbar() {
                   onClick={() => setIsNotifyOpen(!isNotifyOpen)}
                   className="p-2 rounded-full hover:bg-slate-100 transition-colors relative"
                 >
-                  <Bell size={22} className={notifications.length > 0 ? "text-rose-500 animate-swing" : "text-slate-600"} />
-                  {notifications.length > 0 && (
-                    <span className="absolute top-1 right-1 bg-rose-600 text-white text-[10px] font-black w-4 h-4 flex items-center justify-center rounded-full border-2 border-white">
-                      {notifications.length}
+                  <Bell size={22} className={unreadCount > 0 ? "text-rose-500 animate-swing" : "text-slate-600"} />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 bg-rose-600 text-white text-[10px] font-black min-w-4 h-4 px-1 flex items-center justify-center rounded-full border-2 border-white">
+                      {unreadCount}
                     </span>
                   )}
                 </button>
 
                 {/* Notification Dropdown */}
                 {isNotifyOpen && (
-                  <div className="absolute right-0 mt-3 w-80 bg-white rounded-3xl shadow-2xl border border-slate-100 p-4 animate-in fade-in slide-in-from-top-2">
-                    <h4 className="font-black text-slate-900 mb-4 px-2">Reminders</h4>
-                    {notifications.length === 0 ? (
-                      <p className="text-sm text-slate-400 text-center py-6">No upcoming appointments</p>
-                    ) : (
-                      <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
-                        {notifications.map((n) => (
-                          <div key={n.id} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group cursor-pointer hover:bg-slate-100 transition-colors">
-                            <p className="text-sm font-bold text-slate-800">Appointment with {n.doctorName}</p>
-                            <div className="flex items-center gap-3 mt-1 text-[11px] font-bold text-slate-500">
-                              <span className="flex items-center gap-1"><Calendar size={12} /> {n.appointmentDate}</span>
-                              <span className="flex items-center gap-1"><Clock size={12} /> {n.appointmentTime}</span>
+                  <div className="absolute right-0 mt-3 w-96 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-top-2 z-50">
+                    <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                      <h4 className="font-black text-slate-900">Notifications</h4>
+                      {unreadCount > 0 && (
+                        <button 
+                          onClick={markAllAsRead}
+                          className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+                        >
+                          Mark all as read
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="max-h-[420px] overflow-y-auto scrollbar-hide py-2">
+                      {storeNotifications.length === 0 ? (
+                        <div className="py-12 text-center">
+                          <Bell size={40} className="mx-auto text-slate-100 mb-4" />
+                          <p className="text-sm text-slate-400">All caught up!</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-slate-50">
+                          {storeNotifications.map((n) => (
+                            <div 
+                              key={n.id} 
+                              onClick={() => handleNotificationClick(n)}
+                              className={`px-6 py-4 cursor-pointer hover:bg-slate-50 transition-colors flex gap-4 ${!n.isRead ? 'bg-blue-50/30' : ''}`}
+                            >
+                              <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${!n.isRead ? 'bg-primary' : 'bg-transparent'}`} />
+                              <div className="flex-1">
+                                <p className="text-sm font-bold text-slate-900 leading-tight mb-1">{n.title}</p>
+                                <p className="text-xs text-slate-500 leading-relaxed">{n.message}</p>
+                                <p className="text-[10px] font-medium text-slate-400 mt-2">
+                                  {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(n.timestamp).toLocaleDateString()}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {storeNotifications.length > 0 && (
+                      <Link 
+                        href="/dashboard" 
+                        onClick={() => setIsNotifyOpen(false)}
+                        className="block py-4 text-center text-xs font-bold text-slate-400 hover:text-primary border-t border-slate-50 transition-colors"
+                      >
+                        View all activity
+                      </Link>
                     )}
                   </div>
                 )}

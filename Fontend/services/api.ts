@@ -467,6 +467,29 @@ class ApiService {
     return (await this.client.get(`/api/appointments/${id}`)).data;
   }
 
+  async cancelAppointment(id: string, reason: string) {
+    try {
+      return (await this.client.put(`/api/appointments/${id}/cancel`, { reason })).data;
+    } catch {
+      return (await this.client.put(`/api/appointments/${id}`, { status: 'CANCELLED', cancelReason: reason })).data;
+    }
+  }
+
+  async rescheduleAppointment(id: string, newDate: string, newSlot: string) {
+    try {
+      return (await this.client.put(`/api/appointments/${id}/reschedule`, {
+        appointmentDate: newDate,
+        appointmentTime: newSlot,
+      })).data;
+    } catch {
+      return (await this.client.put(`/api/appointments/${id}`, {
+        appointmentDate: newDate,
+        appointmentTime: newSlot,
+        status: 'SCHEDULED',
+      })).data;
+    }
+  }
+
   async updateAppointmentStatus(id: string, status: string) {
     try {
       return (await this.client.put(`/api/admin/appointments/${id}`, { status })).data;
@@ -606,6 +629,20 @@ class ApiService {
     } catch (e: any) {
       return { totalDoctors: 0, totalAppointments: 0, totalUsers: 0, totalRevenue: 0 };
     }
+  }
+
+  // Payment methods
+  async initiatePayment(appointmentId: string | number, paymentMethod: string) {
+    const res = await this.client.post('/api/payments/initiate', {
+      appointmentId: Number(appointmentId),
+      paymentMethod
+    });
+    return res.data;
+  }
+
+  async getPaymentStatus(paymentId: string | number) {
+    const res = await this.client.get(`/api/payments/${paymentId}/status`);
+    return res.data;
   }
 }
 

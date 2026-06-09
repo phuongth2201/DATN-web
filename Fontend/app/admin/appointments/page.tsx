@@ -11,10 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Calendar, Clock, CheckCircle, XCircle, Filter, User, Stethoscope, FileText, X, Save, Loader2 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
+import { useNotificationStore } from '@/stores/notificationStore';
 
 export default function AdminAppointmentsPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { addNotification } = useNotificationStore();
   const { user, isAuthenticated, isInitialized } = useAuthStore();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,6 +72,18 @@ export default function AdminAppointmentsPage() {
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
       await apiService.updateAppointmentStatus(id, newStatus);
+      
+      // Notify the patient (simulated)
+      const appointment = appointments.find(a => String(a.id) === String(id));
+      if (appointment) {
+        addNotification({
+          title: `Appointment ${newStatus}`,
+          message: `Your appointment with Dr. ${appointment.doctorName} has been ${newStatus.toLowerCase()}.`,
+          type: 'status_change',
+          appointmentId: String(id)
+        });
+      }
+
       toast({
         title: 'Success',
         description: `Appointment marked as ${newStatus.toLowerCase()}.`,
@@ -110,6 +124,14 @@ export default function AdminAppointmentsPage() {
 
       // 2. Mark appointment as COMPLETED
       await apiService.updateAppointmentStatus(selectedAppointment.id, 'COMPLETED');
+
+      // Notify patient
+      addNotification({
+        title: 'Medical Record Created',
+        message: `Your consultation with Dr. ${selectedAppointment.doctorName} is complete. You can now view your medical record.`,
+        type: 'status_change',
+        appointmentId: String(selectedAppointment.id)
+      });
 
       toast({
         title: 'Completed Successfully',
