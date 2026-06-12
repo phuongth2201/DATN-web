@@ -60,12 +60,14 @@ export function Navbar() {
         <div className="hidden md:flex items-center gap-8">
           {isAuthenticated ? (
             <>
-              <Link href="/dashboard" className="text-foreground/70 hover:text-primary font-medium transition-colors">
-                Dashboard
+              <Link href={user?.role?.toUpperCase() === 'DOCTOR' || user?.role?.toUpperCase() === 'ROLE_DOCTOR' ? '/doctor-dashboard' : '/dashboard'} className="text-foreground/70 hover:text-primary font-medium transition-colors">
+                {user?.role?.toUpperCase() === 'DOCTOR' || user?.role?.toUpperCase() === 'ROLE_DOCTOR' ? 'Dashboard' : 'Dashboard'}
               </Link>
-              <Link href="/appointments" className="text-foreground/70 hover:text-primary font-medium transition-colors">
-                Appointments
-              </Link>
+              {!(user?.role?.toUpperCase() === 'DOCTOR' || user?.role?.toUpperCase() === 'ROLE_DOCTOR') && (
+                <Link href="/appointments" className="text-foreground/70 hover:text-primary font-medium transition-colors">
+                  Appointments
+                </Link>
+              )}
               <Link href="/profile" className="text-foreground/70 hover:text-primary font-medium transition-colors">
                 Profile
               </Link>
@@ -192,12 +194,14 @@ export function Navbar() {
                 <p className="text-sm font-bold text-slate-900">{user?.fullName}</p>
                 <p className="text-xs text-slate-500 font-medium">{user?.email}</p>
               </div>
-              <Link href="/dashboard" className="block px-4 py-2 text-foreground hover:bg-primary/10 rounded transition-colors">
-                Dashboard
+              <Link href={user?.role?.toUpperCase() === 'DOCTOR' || user?.role?.toUpperCase() === 'ROLE_DOCTOR' ? '/doctor-dashboard' : '/dashboard'} className="block px-4 py-2 text-foreground hover:bg-primary/10 rounded transition-colors">
+                {user?.role?.toUpperCase() === 'DOCTOR' || user?.role?.toUpperCase() === 'ROLE_DOCTOR' ? 'Dashboard' : 'Dashboard'}
               </Link>
-              <Link href="/appointments" className="block px-4 py-2 text-foreground hover:bg-primary/10 rounded transition-colors">
-                My Appointments
-              </Link>
+              {!(user?.role?.toUpperCase() === 'DOCTOR' || user?.role?.toUpperCase() === 'ROLE_DOCTOR') && (
+                <Link href="/appointments" className="block px-4 py-2 text-foreground hover:bg-primary/10 rounded transition-colors">
+                  My Appointments
+                </Link>
+              )}
               <Link href="/profile" className="block px-4 py-2 text-foreground hover:bg-primary/10 rounded transition-colors">
                 Profile
               </Link>

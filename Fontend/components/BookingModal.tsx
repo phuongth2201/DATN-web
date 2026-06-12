@@ -121,6 +121,30 @@ export function BookingModal({ isOpen, onClose }: BookingModalProps) {
 
   const selectedDoctor = doctors.find((d) => String(d.id) === String(selectedDoctorId));
 
+  const getTodayDateString = () => {
+    const today = new Date();
+    const offset = today.getTimezoneOffset();
+    const localDate = new Date(today.getTime() - (offset * 60 * 1000));
+    return localDate.toISOString().split('T')[0];
+  };
+
+  const isSlotPast = (slotTime: string, dateStr: string) => {
+    const todayStr = getTodayDateString();
+    if (dateStr !== todayStr) return false;
+    
+    const now = new Date();
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
+    
+    const [slotHoursStr, slotMinutesStr] = slotTime.split(':');
+    const slotHours = parseInt(slotHoursStr, 10);
+    const slotMinutes = parseInt(slotMinutesStr, 10);
+    
+    if (slotHours < currentHours) return true;
+    if (slotHours === currentHours && slotMinutes <= currentMinutes) return true;
+    return false;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[600px] bg-white max-h-[95vh] overflow-y-auto rounded-3xl shadow-2xl border-none">
@@ -180,7 +204,7 @@ export function BookingModal({ isOpen, onClose }: BookingModalProps) {
               type="date"
               value={selectedDate}
               onChange={handleDateChange}
-              min={new Date().toISOString().split('T')[0]}
+              min={getTodayDateString()}
               className="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none bg-slate-50/50 font-medium"
             />
           </div>
@@ -207,11 +231,11 @@ export function BookingModal({ isOpen, onClose }: BookingModalProps) {
                         setSelectedSlotId(slot.id);
                         setSelectedSlotTime(slot.startTime);
                       }}
-                      disabled={!slot.isAvailable}
+                      disabled={!slot.isAvailable || isSlotPast(slot.startTime, selectedDate)}
                       className={`py-3 rounded-xl text-sm font-black border transition-all ${
                         selectedSlotId === slot.id
                           ? 'bg-primary text-white border-primary shadow-lg scale-105'
-                          : slot.isAvailable
+                          : (slot.isAvailable && !isSlotPast(slot.startTime, selectedDate))
                           ? 'bg-white border-slate-200 text-slate-700 hover:border-primary'
                           : 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed line-through'
                       }`}

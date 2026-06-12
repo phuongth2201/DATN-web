@@ -15,7 +15,7 @@ import { useState } from 'react';
 
 export default function AppointmentsPage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const { appointments, isLoading, fetchAppointments } = useAppointmentStore();
   const { toast } = useToast();
   const [selectedAptToPay, setSelectedAptToPay] = useState<any>(null);
@@ -27,8 +27,15 @@ export default function AppointmentsPage() {
       router.push('/login');
       return;
     }
+    
+    const role = user?.role?.toUpperCase();
+    if (role === 'DOCTOR' || role === 'ROLE_DOCTOR') {
+      router.push('/doctor-dashboard');
+      return;
+    }
+
     fetchAppointments();
-  }, [isAuthenticated, fetchAppointments, router]);
+  }, [isAuthenticated, user?.role, fetchAppointments, router]);
 
   if (!isAuthenticated) {
     return null;

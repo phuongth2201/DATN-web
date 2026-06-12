@@ -32,6 +32,30 @@ export default function DoctorDetailPage() {
     getDoctorById(doctorId);
   }, [doctorId, getDoctorById]);
 
+  const getTodayDateString = () => {
+    const today = new Date();
+    const offset = today.getTimezoneOffset();
+    const localDate = new Date(today.getTime() - (offset * 60 * 1000));
+    return localDate.toISOString().split('T')[0];
+  };
+
+  const isSlotPast = (slotTime: string, dateStr: string) => {
+    const todayStr = getTodayDateString();
+    if (dateStr !== todayStr) return false;
+    
+    const now = new Date();
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
+    
+    const [slotHoursStr, slotMinutesStr] = slotTime.split(':');
+    const slotHours = parseInt(slotHoursStr, 10);
+    const slotMinutes = parseInt(slotMinutesStr, 10);
+    
+    if (slotHours < currentHours) return true;
+    if (slotHours === currentHours && slotMinutes <= currentMinutes) return true;
+    return false;
+  };
+
   const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const date = e.target.value;
     setSelectedDate(date);
@@ -251,7 +275,7 @@ export default function DoctorDetailPage() {
                       id="date"
                       value={selectedDate}
                       onChange={handleDateChange}
-                      min={new Date().toISOString().split('T')[0]}
+                      min={getTodayDateString()}
                       className="w-full px-3 py-2 border rounded-md"
                     />
                   </div>
@@ -277,8 +301,8 @@ export default function DoctorDetailPage() {
                               className={`p-3 border rounded-md font-medium transition ${selectedSlotId === slot.id
                                   ? 'bg-blue-600 text-white border-blue-600'
                                   : 'bg-white border-gray-300 hover:border-blue-600'
-                                } ${!slot.isAvailable ? 'opacity-50 cursor-not-allowed' : ''}`}
-                              disabled={!slot.isAvailable}
+                                } ${!slot.isAvailable || isSlotPast(slot.startTime, selectedDate) ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''}`}
+                              disabled={!slot.isAvailable || isSlotPast(slot.startTime, selectedDate)}
                             >
                               {slot.startTime}
                             </button>

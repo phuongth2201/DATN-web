@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PaymentModal } from '@/components/PaymentModal';
+import { apiService } from '@/services/api';
 
 export default function AppointmentDetailPage() {
   const params = useParams();
@@ -55,6 +56,8 @@ export default function AppointmentDetailPage() {
   const [review, setReview] = useState({ rating: 5, comment: '' });
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
+  const [medicalRecord, setMedicalRecord] = useState<any>(null);
+
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login');
@@ -62,6 +65,16 @@ export default function AppointmentDetailPage() {
     }
     getAppointmentById(appointmentId);
   }, [appointmentId, isAuthenticated, getAppointmentById, router]);
+
+  useEffect(() => {
+    if (currentAppointment?.status === 'COMPLETED') {
+      apiService.getMedicalRecords(1, 100).then((res) => {
+        const records = Array.isArray(res) ? res : res.data || [];
+        const record = records.find((r: any) => String(r.appointmentId) === String(currentAppointment.id));
+        if (record) setMedicalRecord(record);
+      }).catch(console.error);
+    }
+  }, [currentAppointment]);
 
   const handleCancel = async () => {
     if (!cancelReason.trim()) {
@@ -264,10 +277,40 @@ export default function AppointmentDetailPage() {
                 {currentAppointment.notes && (
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-2">
-                      Doctor Notes
+                      Patient Notes
                     </p>
                     <div className="bg-gray-50 p-4 rounded">
                       <p>{currentAppointment.notes}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Medical Record */}
+                {medicalRecord && (
+                  <div className="mt-6 border-t pt-6 border-blue-100">
+                    <h3 className="text-lg font-bold text-blue-800 mb-4 flex items-center">
+                      <FileText className="w-5 h-5 mr-2" />
+                      Medical Record (Diagnosis & Treatment)
+                    </h3>
+                    <div className="bg-blue-50/50 p-6 rounded-xl space-y-4">
+                      <div>
+                        <p className="text-sm font-bold text-blue-600 mb-1 uppercase tracking-wide">Diagnosis</p>
+                        <p className="text-gray-800 whitespace-pre-wrap">{medicalRecord.diagnosis}</p>
+                      </div>
+                      <div className="h-px bg-blue-100 w-full my-2"></div>
+                      <div>
+                        <p className="text-sm font-bold text-blue-600 mb-1 uppercase tracking-wide">Treatment Plan / Prescription</p>
+                        <p className="text-gray-800 whitespace-pre-wrap">{medicalRecord.treatment}</p>
+                      </div>
+                      {medicalRecord.notes && (
+                        <>
+                          <div className="h-px bg-blue-100 w-full my-2"></div>
+                          <div>
+                            <p className="text-sm font-bold text-blue-600 mb-1 uppercase tracking-wide">Doctor Notes</p>
+                            <p className="text-gray-800 whitespace-pre-wrap">{medicalRecord.notes}</p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -292,7 +335,7 @@ export default function AppointmentDetailPage() {
                   <CardTitle className="text-base">Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {currentAppointment.status === 'CONFIRMED' && (
+                  {(currentAppointment.status === 'CONFIRMED' || currentAppointment.status === 'PENDING') && (
                     <>
                       <Button
                         variant="outline"
