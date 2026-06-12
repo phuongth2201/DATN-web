@@ -4,6 +4,8 @@ WORKDIR /workspace/app
 COPY mvnw .
 COPY .mvn .mvn
 COPY pom.xml .
+COPY sonar-project.properties .
+COPY checkstyle.xml .
 COPY src src
 
 RUN chmod +x mvnw
