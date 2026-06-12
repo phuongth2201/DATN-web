@@ -13,7 +13,7 @@ COPY package-lock.json .
 COPY src src
 
 RUN chmod +x mvnw
-RUN ./mvnw clean package -Pprod,-webapp -DskipTests
+RUN ./mvnw clean package -Pprod,-webapp -DskipTests -Dskip.npm=true -Dskip.installnodenpm=true
 
 FROM eclipse-temurin:17-jre-alpine
 VOLUME /tmp
