@@ -122,3 +122,10 @@ jhipster:
 # ===================================================================
 
 # application:
+ 
+
+payos:
+ client-id: 4cc46945-aa6b-4d7a-bd63-5e0597522c12
+ api-key: 97f0f8f5-2f70-42e1-9f12-fa8face24336
+ checksum-key: 3c066bffffedefc19fa4819007e0143fdec474c9fa6df228365f449772e7c581
+
