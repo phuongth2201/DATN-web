@@ -6,6 +6,8 @@ COPY .mvn .mvn
 COPY pom.xml .
 COPY sonar-project.properties .
 COPY checkstyle.xml .
+COPY package.json .
+COPY package-lock.json .
 COPY src src
 
 RUN chmod +x mvnw
