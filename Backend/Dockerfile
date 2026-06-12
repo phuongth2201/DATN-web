@@ -7,7 +7,7 @@ COPY pom.xml .
 COPY src src
 
 RUN chmod +x mvnw
-RUN ./mvnw clean package -Pprod -DskipTests
+RUN ./mvnw clean package -Pprod,-webapp -DskipTests
 
 FROM eclipse-temurin:17-jre-alpine
 VOLUME /tmp
