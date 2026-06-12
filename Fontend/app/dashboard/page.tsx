@@ -40,9 +40,13 @@ export default function DashboardPage() {
 
     const role = user?.role?.toUpperCase();
     console.log('Current User Role in Dashboard:', role);
-    if (role === 'ADMIN' || role === 'ROLE_ADMIN' || role === 'DOCTOR' || role === 'ROLE_DOCTOR') {
+    if (role === 'ADMIN' || role === 'ROLE_ADMIN') {
       console.log('Redirecting to Admin...');
       router.push('/admin');
+      return;
+    }
+    if (role === 'DOCTOR' || role === 'ROLE_DOCTOR') {
+      router.push('/doctor-dashboard');
       return;
     }
 
@@ -55,7 +59,7 @@ export default function DashboardPage() {
   }, [isAuthenticated, user?.role, fetchAppointments, router]);
 
   const upcomingAppointments = appointments.filter(
-    (apt) => apt.status === 'SCHEDULED' || apt.status === 'PENDING'
+    (apt) => apt.status === 'CONFIRMED' || apt.status === 'PENDING'
   );
 
   const soonAppointments = appointments.filter((apt) => {

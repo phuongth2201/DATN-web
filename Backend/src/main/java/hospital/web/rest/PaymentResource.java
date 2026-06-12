@@ -65,6 +65,31 @@ public class PaymentResource {
         return ResponseEntity.ok(toMap(payment));
     }
 
+    @PostMapping("/payments/payos-webhook")
+    public ResponseEntity<Map<String, String>> payosWebhook(@RequestBody com.fasterxml.jackson.databind.JsonNode request) {
+        try {
+            // Lấy data từ webhook của PayOS
+            com.fasterxml.jackson.databind.JsonNode data = request.get("data");
+            if (data != null && data.has("orderCode")) {
+                // orderCode chính là appointmentId mà chúng ta gửi lên PayOS lúc tạo link
+                long appointmentId = data.get("orderCode").asLong();
+                Appointment appointment = appointmentRepository.findById(appointmentId).orElse(null);
+                
+                if (appointment != null) {
+                    // Tự động gạch nợ (đổi trạng thái sang PAID)
+                    appointment.setPaymentStatus("PAID");
+                    appointmentRepository.save(appointment);
+                    System.out.println("✅ Tự động gạch nợ thành công cho Lịch khám: " + appointmentId);
+                }
+            }
+            // Luôn trả về 200 OK để PayOS biết là mình đã nhận được, tránh bị gọi lại nhiều lần
+            return ResponseEntity.ok(Map.of("success", "true"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.ok(Map.of("success", "true"));
+        }
+    }
+
     @GetMapping("/payments")
     public ResponseEntity<PageResponseDTO<Map<String, Object>>> list(
         @RequestParam(defaultValue = "1") int page,

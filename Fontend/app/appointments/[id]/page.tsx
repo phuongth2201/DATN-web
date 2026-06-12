@@ -41,6 +41,16 @@ export default function AppointmentDetailPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [newDate, setNewDate] = useState('');
   const [newSlot, setNewSlot] = useState('');
+
+  const formatAMPM = (timeStr: string) => {
+    if (!timeStr) return '';
+    const [h, m] = timeStr.split(':');
+    const hour = parseInt(h);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 || 12;
+    return `${formattedHour}:${m} ${ampm}`;
+  };
+
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [review, setReview] = useState({ rating: 5, comment: '' });
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -85,6 +95,17 @@ export default function AppointmentDetailPage() {
       toast({
         title: 'Error',
         description: 'Please select a date and time',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // JS Validation: Check if time is between 08:00 and 17:00
+    const [hours, minutes] = newSlot.split(':').map(Number);
+    if (hours < 8 || hours > 17 || (hours === 17 && minutes > 0)) {
+      toast({
+        title: 'Invalid Time',
+        description: 'Appointments are only available between 08:00 AM and 05:00 PM',
         variant: 'destructive',
       });
       return;
@@ -160,7 +181,7 @@ export default function AppointmentDetailPage() {
           {/* Status Badge */}
           <div className="flex items-center gap-4 mb-8">
             <div>
-              {currentAppointment.status === 'SCHEDULED' && (
+              {currentAppointment.status === 'CONFIRMED' && (
                 <span className="inline-block px-4 py-2 bg-blue-100 text-blue-700 rounded-full font-semibold">
                   Scheduled
                 </span>
@@ -210,7 +231,7 @@ export default function AppointmentDetailPage() {
                     <div>
                       <p className="text-sm text-gray-600">Time</p>
                       <p className="font-semibold">
-                        {currentAppointment.appointmentTime}
+                        {formatAMPM(currentAppointment.appointmentTime)}
                       </p>
                     </div>
                   </div>
@@ -271,7 +292,7 @@ export default function AppointmentDetailPage() {
                   <CardTitle className="text-base">Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {currentAppointment.status === 'SCHEDULED' && (
+                  {currentAppointment.status === 'CONFIRMED' && (
                     <>
                       <Button
                         variant="outline"
@@ -360,12 +381,15 @@ export default function AppointmentDetailPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">New Time</label>
+                  <label className="block text-sm font-medium">New Time (08:00 AM - 05:00 PM)</label>
                   <input
                     type="time"
+                    min="08:00"
+                    max="17:00"
                     value={newSlot}
                     onChange={(e) => setNewSlot(e.target.value)}
                     className="w-full px-3 py-2 border rounded-md"
+                    required
                   />
                 </div>
 

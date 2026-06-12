@@ -26,10 +26,8 @@ export function Navbar() {
   const unreadCount = getUnreadCount();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchAppointments();
-    }
-  }, [isAuthenticated, fetchAppointments]);
+    // Only check auth status or other generic initialization here
+  }, [isAuthenticated]);
 
   const handleLogout = async () => {
     await logout();
@@ -71,7 +69,7 @@ export function Navbar() {
               <Link href="/profile" className="text-foreground/70 hover:text-primary font-medium transition-colors">
                 Profile
               </Link>
-              {(user?.role?.toUpperCase() === 'ADMIN' || user?.role?.toUpperCase() === 'ROLE_ADMIN' || user?.role?.toUpperCase() === 'DOCTOR' || user?.role?.toUpperCase() === 'ROLE_DOCTOR') && (
+              {(user?.role?.toUpperCase() === 'ADMIN' || user?.role?.toUpperCase() === 'ROLE_ADMIN') && (
                 <Link href="/admin" className="text-foreground/70 hover:text-primary font-medium transition-colors">
                   Admin Panel
                 </Link>
@@ -203,7 +201,7 @@ export function Navbar() {
               <Link href="/profile" className="block px-4 py-2 text-foreground hover:bg-primary/10 rounded transition-colors">
                 Profile
               </Link>
-              {(user?.role?.toUpperCase() === 'ADMIN' || user?.role?.toUpperCase() === 'ROLE_ADMIN' || user?.role?.toUpperCase() === 'DOCTOR' || user?.role?.toUpperCase() === 'ROLE_DOCTOR') && (
+              {(user?.role?.toUpperCase() === 'ADMIN' || user?.role?.toUpperCase() === 'ROLE_ADMIN') && (
                 <Link href="/admin" className="block px-4 py-2 text-foreground hover:bg-primary/10 rounded transition-colors">
                   Admin Panel
                 </Link>

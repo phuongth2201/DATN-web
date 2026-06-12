@@ -24,8 +24,18 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import hospital.security.SecurityUtils;
+import hospital.repository.UserRepository;
+import hospital.repository.SpecialtyRepository;
+import hospital.repository.HospitalRepository;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,16 +46,26 @@ public class DoctorResource {
     private final DoctorRepository doctorRepository;
     private final AppointmentRepository appointmentRepository;
     private final ReviewRepository reviewRepository;
+    private final UserRepository userRepository;
+    private final SpecialtyRepository specialtyRepository;
+    private final HospitalRepository hospitalRepository;
 
     public DoctorResource(
         DoctorRepository doctorRepository,
         AppointmentRepository appointmentRepository,
-        ReviewRepository reviewRepository
+        ReviewRepository reviewRepository,
+        UserRepository userRepository,
+        SpecialtyRepository specialtyRepository,
+        HospitalRepository hospitalRepository
     ) {
         this.doctorRepository = doctorRepository;
         this.appointmentRepository = appointmentRepository;
         this.reviewRepository = reviewRepository;
+        this.userRepository = userRepository;
+        this.specialtyRepository = specialtyRepository;
+        this.hospitalRepository = hospitalRepository;
     }
+
 
     @GetMapping("/doctors")
     public ResponseEntity<PageResponseDTO<Map<String, Object>>> getDoctors(
@@ -62,7 +82,7 @@ public class DoctorResource {
         if (specialty != null && !specialty.isBlank()) {
             spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("specialty").get("name")), specialty.toLowerCase()));
         }
-        if (minRating != null) {
+        if (minRating != null && minRating > 0) {
             spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("rating"), minRating));
         }
         if (maxPrice != null) {
@@ -94,6 +114,63 @@ public class DoctorResource {
         Map<String, Object> response = toDetail(doctor);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/doctors/me")
+    @PreAuthorize("hasAuthority('ROLE_DOCTOR')")
+    public ResponseEntity<Map<String, Object>> getCurrentDoctor() {
+        String login = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new IllegalStateException("User not logged in"));
+        hospital.domain.User user = userRepository.findOneByLogin(login).orElseThrow(() -> new IllegalStateException("User not found"));
+        
+        Optional<Doctor> doctorOpt = doctorRepository.findByEmail(user.getEmail());
+        if (doctorOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(toDetail(doctorOpt.get()));
+    }
+
+    @PostMapping("/doctors/onboarding")
+    @PreAuthorize("hasAuthority('ROLE_DOCTOR')")
+    public ResponseEntity<Map<String, Object>> onboardDoctor(@Valid @RequestBody OnboardingRequest request) {
+        String login = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new IllegalStateException("User not logged in"));
+        hospital.domain.User user = userRepository.findOneByLogin(login).orElseThrow(() -> new IllegalStateException("User not found"));
+        
+        if (doctorRepository.findByEmail(user.getEmail()).isPresent()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Hồ sơ bác sĩ cho email này đã tồn tại"));
+        }
+
+        Doctor doctor = new Doctor();
+        doctor.setEmail(user.getEmail());
+        doctor.setFullName(request.fullName() != null ? request.fullName() : user.getFirstName() + " " + user.getLastName());
+        doctor.setPhoneNumber(request.phoneNumber());
+        doctor.setBio(request.bio());
+        doctor.setExperience(request.experience());
+        doctor.setPrice(request.price());
+        doctor.setLicense(request.license());
+
+        if (request.specialtyId() != null) {
+            specialtyRepository.findById(request.specialtyId()).ifPresent(doctor::setSpecialty);
+        }
+        if (request.hospitalId() != null) {
+            hospitalRepository.findById(request.hospitalId()).ifPresent(doctor::setHospital);
+        }
+
+        doctor.setRating(5.0); // Default rating
+        doctor.setReviewCount(0);
+        
+        Doctor saved = doctorRepository.save(doctor);
+        return ResponseEntity.ok(Map.of("message", "Hồ sơ bác sĩ đã được tạo thành công", "doctor", toDetail(saved)));
+    }
+
+    public record OnboardingRequest(
+        String fullName,
+        String phoneNumber,
+        String bio,
+        Integer experience,
+        Long price,
+        String license,
+        Long specialtyId,
+        Long hospitalId
+    ) {}
 
     private Map<String, Object> toSummary(Doctor doctor) {
         Map<String, Object> hospital = new LinkedHashMap<>();
@@ -160,7 +237,11 @@ public class DoctorResource {
         List<String> booked = appointmentRepository
             .findByDoctorIdAndAppointmentDate(doctorId, date)
             .stream()
-            .map(a -> a.getAppointmentTime().toString().substring(0, 5))
+            .filter(a -> a.getAppointmentTime() != null)
+            .map(a -> {
+                String timeStr = a.getAppointmentTime().toString();
+                return timeStr.length() >= 5 ? timeStr.substring(0, 5) : timeStr;
+            })
             .toList();
         return baseSlots.stream().filter(slot -> !booked.contains(slot)).toList();
     }

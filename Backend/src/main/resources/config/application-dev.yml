@@ -21,6 +21,9 @@ logging:
     hospital: DEBUG
 
 spring:
+  docker:
+    compose:
+      enabled: false
   devtools:
     restart:
       enabled: true
@@ -32,9 +35,9 @@ spring:
       indent-output: true
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: jdbc:postgresql://localhost:5433/backend
-    username: backend
-    password:
+    url: jdbc:postgresql://ep-misty-term-ao44ilul.c-2.ap-southeast-1.aws.neon.tech/khambenhdb?sslmode=require
+    username: neondb_owner
+    password: npg_KW8w1QzdFGvx
     hikari:
       poolName: Hikari
       auto-commit: false
@@ -52,7 +55,7 @@ spring:
     cache: false
 
 server:
-  port: 8080
+  port: 8081
   # make sure requests the proxy uri instead of the server one
   forward-headers-strategy: native
 
@@ -105,3 +108,10 @@ jhipster:
 # ===================================================================
 
 # application:
+ 
+
+payos:
+ client-id: 4cc46945-aa6b-4d7a-bd63-5e0597522c12
+ api-key: 97f0f8f5-2f70-42e1-9f12-fa8face24336
+ checksum-key: 3c066bffffedefc19fa4819007e0143fdec474c9fa6df228365f449772e7c581
+

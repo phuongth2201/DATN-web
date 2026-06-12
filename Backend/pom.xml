@@ -154,6 +154,11 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>vn.payos</groupId>
+            <artifactId>payos-checkout</artifactId>
+            <version>1.0.7</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-test</artifactId>
             <scope>test</scope>
@@ -473,7 +478,7 @@
                             </requireMavenVersion>
                             <requireJavaVersion>
                                 <message>You are running an incompatible version of Java. JHipster supports JDK 17 to 24.</message>
-                                <version>[17,18),[21,22),[24,25)</version>
+                                <version>[17,25)</version>
                             </requireJavaVersion>
                         </rules>
                     </configuration>

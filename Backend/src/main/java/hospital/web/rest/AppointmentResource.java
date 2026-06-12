@@ -53,6 +53,9 @@ public class AppointmentResource {
         Doctor doctor = doctorRepository.findById(request.doctorId()).orElseThrow(() -> new IllegalStateException("Doctor not found"));
         Hospital hospital = resolveHospital(request.hospitalId(), doctor);
         LocalTime requestedTime = LocalTime.parse(request.appointmentTime());
+        if (requestedTime.isBefore(LocalTime.of(8, 0)) || requestedTime.isAfter(LocalTime.of(17, 0))) {
+            throw new IllegalStateException("Chỉ được phép đặt lịch trong khoảng từ 08:00 đến 17:00");
+        }
         ensureSlotAvailable(doctor.getId(), request.appointmentDate(), requestedTime, null);
 
         Appointment appointment = new Appointment();
@@ -79,7 +82,17 @@ public class AppointmentResource {
         @RequestParam(defaultValue = "asc") String sortOrder
     ) {
         String login = currentLogin();
-        List<Appointment> appointments = appointmentRepository.findByUserLogin(login);
+        List<Appointment> appointments;
+        if (SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_DOCTOR")) {
+            User user = currentUser();
+            String email = user.getEmail();
+            Doctor doctor = doctorRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalStateException("Doctor profile not found for email: " + email));
+            appointments = appointmentRepository.findByDoctorId(doctor.getId());
+        } else {
+            appointments = appointmentRepository.findByUserLogin(login);
+        }
+
         if (status != null && !status.isBlank()) {
             appointments = appointments
                 .stream()
@@ -105,9 +118,22 @@ public class AppointmentResource {
         Appointment appointment = appointmentRepository.findById(id).orElseThrow(() -> new IllegalStateException("Appointment not found"));
         ensureCanAccess(appointment);
         LocalTime requestedTime = LocalTime.parse(request.appointmentTime());
+        
+        if (requestedTime.isBefore(LocalTime.of(8, 0)) || requestedTime.isAfter(LocalTime.of(17, 0))) {
+            throw new IllegalStateException("Chỉ được phép đặt lịch trong khoảng từ 08:00 đến 17:00");
+        }
+        
         ensureSlotAvailable(appointment.getDoctor().getId(), request.appointmentDate(), requestedTime, appointment.getId());
         appointment.setAppointmentDate(request.appointmentDate());
         appointment.setAppointmentTime(requestedTime);
+        
+        // Luôn đưa về PENDING khi đổi lịch để bác sĩ duyệt lại
+        appointment.setStatus(AppointmentStatus.PENDING);
+        appointment.setNotes(
+            (appointment.getNotes() == null ? "" : appointment.getNotes() + "\n") + 
+            "[HỆ THỐNG]: Bệnh nhân đã đổi ngày/giờ khám. Vui lòng duyệt lại."
+        );
+        
         appointmentRepository.save(appointment);
         AppointmentDTO dto = toDto(appointment);
         dto.setMessage("Lịch khám đã được cập nhật");
@@ -230,7 +256,12 @@ public class AppointmentResource {
         String login = currentLogin();
         boolean owner = appointment.getUser() != null && login.equalsIgnoreCase(appointment.getUser().getLogin());
         boolean admin = SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_ADMIN");
-        if (!owner && !admin) {
+        boolean isDoctor = false;
+        if (SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_DOCTOR")) {
+            User user = currentUser();
+            isDoctor = appointment.getDoctor() != null && user.getEmail().equalsIgnoreCase(appointment.getDoctor().getEmail());
+        }
+        if (!owner && !admin && !isDoctor) {
             throw new IllegalStateException("Unauthorized");
         }
     }

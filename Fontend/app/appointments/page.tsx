@@ -7,13 +7,18 @@ import { useAppointmentStore } from '@/stores/appointmentStore';
 import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar, Clock, User, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Clock, User, AlertCircle, CheckCircle, XCircle, CreditCard } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
+import { PaymentModal } from '@/components/PaymentModal';
+import { useState } from 'react';
 
 export default function AppointmentsPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const { appointments, isLoading, fetchAppointments } = useAppointmentStore();
+  const { toast } = useToast();
+  const [selectedAptToPay, setSelectedAptToPay] = useState<any>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -29,7 +34,7 @@ export default function AppointmentsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'SCHEDULED':
+      case 'CONFIRMED':
         return 'bg-primary/10 text-primary border-primary/20';
       case 'COMPLETED':
         return 'bg-secondary/10 text-secondary border-secondary/20';
@@ -42,7 +47,7 @@ export default function AppointmentsPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'SCHEDULED':
+      case 'CONFIRMED':
         return <AlertCircle className="w-4 h-4" />;
       case 'COMPLETED':
         return <CheckCircle className="w-4 h-4" />;
@@ -103,10 +108,19 @@ export default function AppointmentsPage() {
                       {/* Status */}
                       <div className="space-y-2">
                         <p className="text-sm text-foreground/60 font-semibold uppercase">Status</p>
-                        <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border font-medium ${getStatusColor(appointment.status)}`}>
+                        <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border font-medium mb-2 ${getStatusColor(appointment.status)}`}>
                           {getStatusIcon(appointment.status)}
                           <span>{appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1).toLowerCase()}</span>
                         </div>
+                        {appointment.paymentStatus === 'PAID' ? (
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-green-200 bg-green-50 text-green-700 text-xs font-semibold w-fit">
+                            <CheckCircle className="w-3 h-3" /> PAID
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-red-200 bg-red-50 text-red-700 text-xs font-semibold w-fit">
+                            <AlertCircle className="w-3 h-3" /> UNPAID
+                          </div>
+                        )}
                       </div>
 
                       {/* Date & Time */}
@@ -146,6 +160,17 @@ export default function AppointmentsPage() {
                       {/* Actions */}
                       <div className="space-y-2">
                         <p className="text-sm text-foreground/60 font-semibold uppercase">Actions</p>
+                        
+                        {appointment.status === 'CONFIRMED' && appointment.paymentStatus !== 'PAID' && (
+                          <Button 
+                            onClick={() => setSelectedAptToPay(appointment)}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white mb-2"
+                          >
+                            <CreditCard className="w-4 h-4 mr-2" />
+                            Pay Now
+                          </Button>
+                        )}
+
                         <Link href={`/appointments/${appointment.id}`} className="block">
                           <Button variant="outline" className="w-full border-primary/20 hover:bg-primary/10">
                             View Details
@@ -160,6 +185,14 @@ export default function AppointmentsPage() {
           )}
         </div>
       </main>
+
+      {selectedAptToPay && (
+        <PaymentModal 
+          isOpen={!!selectedAptToPay}
+          onClose={() => setSelectedAptToPay(null)}
+          appointment={selectedAptToPay}
+        />
+      )}
     </>
   );
 }

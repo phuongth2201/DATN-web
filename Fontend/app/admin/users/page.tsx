@@ -44,6 +44,7 @@ export default function AdminUsersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isCreateMode, setIsCreateMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
   // Error Alert State
@@ -99,6 +100,7 @@ export default function AdminUsersPage() {
     } catch (error) {
       setSelectedUser(u);
       setIsEditMode(false);
+      setIsCreateMode(false);
       setIsModalOpen(true);
     }
   };
@@ -112,6 +114,19 @@ export default function AdminUsersPage() {
       setSelectedUser({ ...u });
     }
     setIsEditMode(true);
+    setIsCreateMode(false);
+    setIsModalOpen(true);
+  };
+
+  const handleCreate = () => {
+    setSelectedUser({
+      fullName: '',
+      email: '',
+      phoneNumber: '',
+      authorities: ['ROLE_USER'],
+    });
+    setIsEditMode(true);
+    setIsCreateMode(true);
     setIsModalOpen(true);
   };
 
@@ -127,32 +142,26 @@ export default function AdminUsersPage() {
         ...selectedUser,
         firstName,
         lastName,
-        // CRITICAL: Keep original login if present, don't just use email
-        login: selectedUser.login || selectedUser.email,
+        login: selectedUser.login || selectedUser.email.split('@')[0],
       };
 
-      const updatedUser = await apiService.updateUser(updateData);
+      if (isCreateMode) {
+        await apiService.createUser(updateData);
+        toast({
+          title: 'Success',
+          description: 'New user created successfully.',
+        });
+      } else {
+        await apiService.updateUser(updateData);
+        toast({
+          title: 'Success',
+          description: 'User information updated successfully.',
+        });
+      }
       
-      toast({
-        title: 'Success',
-        description: 'User information updated successfully.',
-      });
-      
-      // Update local state immediately for instant feedback
-      setUsers(prev => prev.map(u => {
-        const isMatch = (u.id && u.id === selectedUser.id) || (u.login && u.login === selectedUser.login);
-        if (isMatch) {
-          return { 
-            ...u, 
-            ...updatedUser, 
-            phoneNumber: updateData.phoneNumber, // Force frontend value to stay
-            fullName: selectedUser.fullName 
-          };
-        }
-        return u;
-      }));
-      
+      // Refresh the list from the server
       setIsModalOpen(false);
+      await fetchUsers();
       await fetchUsers(); // Refresh list from server to be sure
     } catch (error) {
       console.error('Failed to update user:', error);
@@ -213,9 +222,14 @@ export default function AdminUsersPage() {
               </h1>
               <p className="text-gray-600">Manage patient and staff accounts</p>
             </div>
-            <Button onClick={() => fetchUsers()} variant="outline" size="sm">
-              Refresh List
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => fetchUsers()} variant="outline" size="sm">
+                Refresh List
+              </Button>
+              <Button onClick={handleCreate} size="sm">
+                Add User
+              </Button>
+            </div>
           </div>
 
           {/* Search */}
@@ -327,9 +341,9 @@ export default function AdminUsersPage() {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{isEditMode ? 'Edit User' : 'User Details'}</DialogTitle>
+            <DialogTitle>{isCreateMode ? 'Add New User' : (isEditMode ? 'Edit User' : 'User Details')}</DialogTitle>
             <DialogDescription>
-              {isEditMode ? 'Update user information below.' : 'Detailed information about the user account.'}
+              {isCreateMode ? 'Fill out the form below to create a new user.' : (isEditMode ? 'Update user information below.' : 'Detailed information about the user account.')}
             </DialogDescription>
           </DialogHeader>
           
@@ -385,6 +399,20 @@ export default function AdminUsersPage() {
                     </div>
                   </div>
                 </>
+              )}
+              {isEditMode && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Role</Label>
+                  <select
+                    value={selectedUser.authorities?.[0] || 'ROLE_USER'}
+                    onChange={(e) => setSelectedUser({ ...selectedUser, authorities: [e.target.value] })}
+                    className="col-span-3 px-3 py-2 border rounded-md"
+                  >
+                    <option value="ROLE_USER">Patient (ROLE_USER)</option>
+                    <option value="ROLE_DOCTOR">Doctor (ROLE_DOCTOR)</option>
+                    <option value="ROLE_ADMIN">Admin (ROLE_ADMIN)</option>
+                  </select>
+                </div>
               )}
             </div>
           )}

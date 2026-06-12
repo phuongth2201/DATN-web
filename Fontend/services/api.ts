@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import Cookie from 'js-cookie';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8081';
 
 class ApiService {
   private client: AxiosInstance;
@@ -213,45 +213,44 @@ class ApiService {
 
   // Doctor & Schedule endpoints
   async searchDoctors(params: any) {
-    return (await this.client.get('/api/doctors', { params })).data;
+    const apiParams = { ...params };
+    if (apiParams.keyword !== undefined) {
+      apiParams.search = apiParams.keyword;
+      delete apiParams.keyword;
+    }
+    if (apiParams.specialization !== undefined) {
+      apiParams.specialty = apiParams.specialization;
+      delete apiParams.specialization;
+    }
+    return (await this.client.get('/api/doctors', { params: apiParams })).data;
   }
 
   async getDoctorById(id: string) {
     return (await this.client.get(`/api/doctors/${id}`)).data;
   }
 
+  async getCurrentDoctor() {
+    return (await this.client.get(`/api/doctors/me`)).data;
+  }
+
   async getDoctorSlots(doctorId: string, params: any) {
-    const { date } = params; // Expecting YYYY-MM-DD
+    // Handle both object params { date: '...' } and direct string '...'
+    const date = typeof params === 'string' ? params : params?.date;
 
     try {
       console.log(`Fetching schedule for Doctor ID: ${doctorId} on Date: ${date}`);
-      const schedulesRes = await this.client.get('/api/schedules', {
-        params: { doctorId, workDate: date }
+      const res = await this.client.get(`/api/appointments/${doctorId}/available-slots`, {
+        params: { startDate: date, endDate: date }
       });
 
-      const schedules = Array.isArray(schedulesRes.data.data)
-        ? schedulesRes.data.data
-        : (Array.isArray(schedulesRes.data) ? schedulesRes.data : []);
-
-      if (schedules.length === 0) {
-        console.log('No schedules found for this doctor/date');
-        return { data: [] };
-      }
-
-      const scheduleId = schedules[0].id;
-      const slotsRes = await this.client.get('/api/time-slots', {
-        params: { scheduleId }
-      });
-
-      const slots = Array.isArray(slotsRes.data.data)
-        ? slotsRes.data.data
-        : (Array.isArray(slotsRes.data) ? slotsRes.data : []);
+      const data = res.data?.availableSlots || [];
+      const daySlots = data.find((d: any) => d.date === date)?.slots || [];
 
       return {
-        data: slots.map((slot: any) => ({
-          id: slot.id,
-          startTime: slot.slotTime,
-          isAvailable: !(slot.booked === true || slot.isBooked === true || slot.is_booked === true)
+        data: daySlots.map((time: string) => ({
+          id: time, // use time string as ID
+          startTime: time,
+          isAvailable: true // Backend only returns available slots
         }))
       };
     } catch (error) {
@@ -309,12 +308,10 @@ class ApiService {
 
     return (await this.client.post('/api/appointments', {
       doctorId: Number(data.doctorId),
-      timeSlotId: Number(data.timeSlotId),
-      patientId: Number(data.patientId),
       appointmentDate: data.appointmentDate,
       appointmentTime: formattedTime,
-      consultationType: data.consultationType,
-      symptoms: data.symptoms
+      reason: data.symptoms,
+      notes: `Consultation Type: ${data.consultationType}`
     })).data;
   }
 
@@ -376,6 +373,20 @@ class ApiService {
     // Use login in URL if available for better REST compliance
     const url = payload.login ? `/api/admin/users/${payload.login}` : '/api/admin/users';
     const res = await this.client.put(url, payload);
+    return this.mapUserData(res.data);
+  }
+
+  async createUser(data: any) {
+    const payload = {
+      login: data.login || data.email.split('@')[0],
+      firstName: data.firstName || '',
+      lastName: data.lastName || '',
+      email: data.email,
+      phoneNumber: data.phoneNumber || '',
+      authorities: data.authorities || ['ROLE_USER'],
+      langKey: 'vi'
+    };
+    const res = await this.client.post('/api/admin/users', payload);
     return this.mapUserData(res.data);
   }
 
@@ -485,7 +496,7 @@ class ApiService {
       return (await this.client.put(`/api/appointments/${id}`, {
         appointmentDate: newDate,
         appointmentTime: newSlot,
-        status: 'SCHEDULED',
+        status: 'CONFIRMED',
       })).data;
     }
   }
@@ -525,7 +536,7 @@ class ApiService {
         trends: statsObj.trends || { users: '+0%', usersUp: true, appointments: '+0%', appointmentsUp: true, revenue: '+0%', revenueUp: true, doctors: '+0%', doctorsUp: true },
         appointmentStats: {
           pending: statsObj.appointmentStatuses?.PENDING || 0,
-          scheduled: statsObj.appointmentStatuses?.CONFIRMED || statsObj.appointmentStatuses?.SCHEDULED || 0,
+          scheduled: statsObj.appointmentStatuses?.CONFIRMED || 0,
           completed: statsObj.appointmentStatuses?.COMPLETED || 0,
           cancelled: statsObj.appointmentStatuses?.CANCELLED || 0
         },
@@ -619,7 +630,7 @@ class ApiService {
         },
         appointmentStats: {
           pending: appointments.filter((a: any) => (a.status || '').toUpperCase() === 'PENDING').length,
-          scheduled: appointments.filter((a: any) => (a.status || '').toUpperCase() === 'CONFIRMED' || (a.status || '').toUpperCase() === 'SCHEDULED').length,
+          scheduled: appointments.filter((a: any) => (a.status || '').toUpperCase() === 'CONFIRMED').length,
           completed: appointments.filter((a: any) => (a.status || '').toUpperCase() === 'COMPLETED').length,
           cancelled: appointments.filter((a: any) => (a.status || '').toUpperCase() === 'CANCELLED').length
         },
@@ -632,9 +643,10 @@ class ApiService {
   }
 
   // Payment methods
-  async initiatePayment(appointmentId: string | number, paymentMethod: string) {
-    const res = await this.client.post('/api/payments/initiate', {
+  async initiatePayment(appointmentId: string | number, paymentMethod: string, amount: number = 5000) {
+    const res = await this.client.post('/api/payments/process', {
       appointmentId: Number(appointmentId),
+      amount: amount,
       paymentMethod
     });
     return res.data;

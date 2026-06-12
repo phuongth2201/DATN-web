@@ -1,6 +1,7 @@
 package hospital.repository;
 
 import hospital.domain.Doctor;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
@@ -9,4 +10,6 @@ import org.springframework.stereotype.Repository;
  * Spring Data JPA repository for the Doctor entity.
  */
 @Repository
-public interface DoctorRepository extends JpaRepository<Doctor, Long>, JpaSpecificationExecutor<Doctor> {}
+public interface DoctorRepository extends JpaRepository<Doctor, Long>, JpaSpecificationExecutor<Doctor> {
+    Optional<Doctor> findByEmail(String email);
+}

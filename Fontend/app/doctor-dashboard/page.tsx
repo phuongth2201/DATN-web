@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Navbar } from '@/components/layout/Navbar';
@@ -20,17 +20,63 @@ import {
   FileText
 } from 'lucide-react';
 import Link from 'next/link';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription,
+  DialogFooter 
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function DoctorDashboard() {
   const router = useRouter();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, isInitialized } = useAuthStore();
   const { toast } = useToast();
   
   const [appointments, setAppointments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [greeting, setGreeting] = useState('');
+  
+  // Get today's date in YYYY-MM-DD
+  const todayDate = new Date().toISOString().split('T')[0];
+
+  const [filterDate, setFilterDate] = useState<string>(todayDate);
+  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  
+  const [appliedFilterDate, setAppliedFilterDate] = useState<string>(todayDate);
+  const [appliedFilterStatus, setAppliedFilterStatus] = useState<string>('ALL');
+  
+  // Track previous pending count for notifications
+  const prevPendingCountRef = useRef<number>(-1);
+  
+  const [selectedApt, setSelectedApt] = useState<any | null>(null);
+  const [isRecordDialogOpen, setIsRecordDialogOpen] = useState(false);
+  const [recordForm, setRecordForm] = useState({
+    diagnosis: '',
+    treatment: '',
+    notes: ''
+  });
+  const [isSubmittingRecord, setIsSubmittingRecord] = useState(false);
+
+  const formatAMPM = (timeStr: string) => {
+    if (!timeStr) return '';
+    const [h, m] = timeStr.split(':');
+    const hour = parseInt(h);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 || 12;
+    return `${formattedHour}:${m} ${ampm}`;
+  };
+
+  const hasFetched = useRef(false);
 
   useEffect(() => {
+    if (!isInitialized) return;
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
     const role = user?.role?.toUpperCase();
     const isDoctor = role === 'DOCTOR' || role === 'ROLE_DOCTOR';
     
@@ -44,28 +90,55 @@ export default function DoctorDashboard() {
     else if (hour < 18) setGreeting('Good Afternoon');
     else setGreeting('Good Evening');
 
-    fetchAppointments();
-  }, [isAuthenticated, user?.role, router]);
+    const checkProfileAndFetch = async () => {
+      try {
+        await apiService.getCurrentDoctor();
+        // Profile exists, load appointments
+        fetchAppointments();
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          toast({
+            title: 'Profile Incomplete',
+            description: 'Please complete your onboarding profile first.',
+          });
+          router.push('/doctor-onboarding');
+        } else {
+          // Other error, just load appointments and see what happens
+          fetchAppointments();
+        }
+      }
+    };
 
-  const fetchAppointments = async () => {
-    setIsLoading(true);
+    checkProfileAndFetch();
+  }, [isInitialized, isAuthenticated, user?.role, router]);
+
+  const fetchAppointments = async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
     try {
-      const res = await apiService.getUserAppointments();
-      // In a real app, backend would filter by doctor. For mock, we filter manually.
-      const allAppointments = Array.isArray(res) ? res : res?.data || [];
-      const doctorAppointments = allAppointments.filter((apt: any) => apt.doctorId === user?.id);
-      setAppointments(doctorAppointments);
+      const response = await apiService.getUserAppointments();
+      const newAppointments = Array.isArray(response) ? response : response?.data || [];
+      
+      // Calculate pending count for notification
+      const currentPending = newAppointments.filter((a: any) => a.status === 'PENDING').length;
+      if (prevPendingCountRef.current !== -1 && currentPending > prevPendingCountRef.current) {
+        toast({
+          title: '🔔 New Appointment Request!',
+          description: 'A patient has just booked a new appointment.',
+          variant: 'default',
+          className: 'bg-blue-600 text-white border-none',
+        });
+      }
+      prevPendingCountRef.current = currentPending;
+
+      setAppointments(newAppointments);
     } catch (error) {
       console.error('Failed to fetch appointments:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load your schedule',
-        variant: 'destructive',
-      });
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   };
+
+  // Removed polling to avoid continuous API calls and UI flickering
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
@@ -84,11 +157,95 @@ export default function DoctorDashboard() {
     }
   };
 
-  if (!isAuthenticated || user?.role !== 'DOCTOR') return null;
+  const handleMarkCompleteClick = (apt: any) => {
+    setSelectedApt(apt);
+    setRecordForm({
+      diagnosis: '',
+      treatment: '',
+      notes: ''
+    });
+    setIsRecordDialogOpen(true);
+  };
 
-  const pendingAppointments = appointments.filter(a => a.status === 'PENDING');
-  const scheduledAppointments = appointments.filter(a => a.status === 'SCHEDULED');
-  const completedAppointments = appointments.filter(a => a.status === 'COMPLETED');
+  const handleSubmitRecord = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedApt) return;
+    if (!recordForm.diagnosis.trim()) {
+      toast({
+        title: 'Lỗi xác thực',
+        description: 'Vui lòng nhập chẩn đoán bệnh',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsSubmittingRecord(true);
+    try {
+      // 1. Create medical record
+      await apiService.createMedicalRecord({
+        appointmentId: Number(selectedApt.id),
+        doctorId: Number(selectedApt.doctorId || user?.id),
+        diagnosis: recordForm.diagnosis,
+        treatment: recordForm.treatment,
+        notes: recordForm.notes,
+        userId: Number(selectedApt.userId || selectedApt.patientId)
+      });
+
+      // 2. Mark appointment as completed
+      await apiService.updateAppointmentStatus(selectedApt.id, 'COMPLETED');
+
+      toast({
+        title: 'Thành công',
+        description: 'Đã hoàn thành khám và lưu hồ sơ bệnh án thành công.',
+      });
+
+      setIsRecordDialogOpen(false);
+      fetchAppointments();
+    } catch (error) {
+      console.error('Failed to complete appointment:', error);
+      toast({
+        title: 'Lỗi',
+        description: 'Không thể lưu bệnh án và hoàn thành lịch khám',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmittingRecord(false);
+    }
+  };
+
+  const role = user?.role?.toUpperCase();
+  const isDoctor = role === 'DOCTOR' || role === 'ROLE_DOCTOR';
+  if (!isAuthenticated || !isDoctor) return null;
+
+  // Apply filters using APPLIED states
+  const filteredAppointments = appointments.filter(a => {
+    let dateMatch = true;
+    let statusMatch = true;
+    
+    if (appliedFilterDate) {
+      if (!a.appointmentDate) {
+        dateMatch = false;
+      } else {
+        try {
+          const aptDate = new Date(a.appointmentDate).toISOString().split('T')[0];
+          dateMatch = aptDate === appliedFilterDate;
+        } catch (e) {
+          dateMatch = false;
+        }
+      }
+    }
+    
+    if (appliedFilterStatus !== 'ALL') {
+      statusMatch = a.status === appliedFilterStatus;
+    }
+    
+    return dateMatch && statusMatch;
+  });
+
+  const pendingAppointments = filteredAppointments.filter(a => a.status === 'PENDING');
+  const scheduledAppointments = filteredAppointments.filter(a => a.status === 'CONFIRMED');
+  const completedAppointments = filteredAppointments.filter(a => a.status === 'COMPLETED');
+  const cancelledAppointments = filteredAppointments.filter(a => a.status === 'CANCELLED');
 
   // Simple stats for mock
   const uniquePatients = new Set(appointments.map(a => a.patientId || a.id)).size;
@@ -149,6 +306,57 @@ export default function DoctorDashboard() {
             ))}
           </div>
 
+          {/* Filters Section */}
+          <div className="bg-white p-4 rounded-xl shadow-sm mb-8 flex flex-col sm:flex-row gap-4 items-end">
+            <div className="flex-1 space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Filter by Date</label>
+              <input 
+                type="date" 
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Filter by Status</label>
+              <select 
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="CONFIRMED">Confirmed</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+            <div className="flex-none flex gap-2">
+              <Button 
+                onClick={async () => { 
+                  setAppliedFilterDate(filterDate); 
+                  setAppliedFilterStatus(filterStatus); 
+                  await fetchAppointments(); 
+                }}
+                className="h-[42px] bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all"
+              >
+                Search
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => { 
+                  setFilterDate(''); 
+                  setFilterStatus('ALL'); 
+                  setAppliedFilterDate(''); 
+                  setAppliedFilterStatus('ALL'); 
+                }}
+                className="h-[42px]"
+              >
+                Clear Filters
+              </Button>
+            </div>
+          </div>
+
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main Content - Schedule */}
             <div className="lg:col-span-2 space-y-8">
@@ -167,10 +375,10 @@ export default function DoctorDashboard() {
                         <CardContent className="p-6">
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div>
-                              <h3 className="text-lg font-bold text-slate-800 mb-1">Patient #{apt.id.split('-')[1]}</h3>
+                              <h3 className="text-lg font-bold text-slate-800 mb-1">Patient #{String(apt.id).includes('-') ? String(apt.id).split('-')[1] : apt.id}</h3>
                               <div className="flex flex-wrap gap-4 text-sm font-medium text-slate-600 mb-2">
                                 <span className="flex items-center gap-1"><Calendar size={14} className="text-slate-400" /> {new Date(apt.appointmentDate).toLocaleDateString()}</span>
-                                <span className="flex items-center gap-1"><Clock size={14} className="text-slate-400" /> {apt.appointmentTime}</span>
+                                <span className="flex items-center gap-1"><Clock size={14} className="text-slate-400" /> {formatAMPM(apt.appointmentTime)}</span>
                               </div>
                               <p className="text-sm text-slate-500"><span className="font-semibold text-slate-700">Reason:</span> {apt.reason || 'N/A'}</p>
                             </div>
@@ -184,7 +392,7 @@ export default function DoctorDashboard() {
                               </Button>
                               <Button 
                                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20"
-                                onClick={() => handleUpdateStatus(apt.id, 'SCHEDULED')}
+                                onClick={() => handleUpdateStatus(apt.id, 'CONFIRMED')}
                               >
                                 Approve
                               </Button>
@@ -198,15 +406,16 @@ export default function DoctorDashboard() {
               )}
 
               {/* Scheduled Appointments */}
-              <section>
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="text-blue-600 w-6 h-6" />
-                    <h2 className="text-2xl font-bold text-slate-800">Upcoming Consultations</h2>
+              {(appliedFilterStatus === 'ALL' || appliedFilterStatus === 'CONFIRMED') && (
+                <section>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="text-blue-600 w-6 h-6" />
+                      <h2 className="text-2xl font-bold text-slate-800">Upcoming Consultations</h2>
+                    </div>
                   </div>
-                </div>
 
-                {isLoading ? (
+                  {isLoading ? (
                   <div className="space-y-4">
                     {[1, 2].map(i => <div key={i} className="h-32 bg-slate-100 animate-pulse rounded-2xl" />)}
                   </div>
@@ -229,8 +438,15 @@ export default function DoctorDashboard() {
                           <div className="flex flex-col md:flex-row">
                             <div className="p-6 flex-1">
                               <div className="flex justify-between items-start mb-3">
-                                <h3 className="text-xl font-bold text-slate-800">Patient #{apt.id.split('-')[1]}</h3>
-                                <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">{apt.consultationType || 'Consultation'}</Badge>
+                                <h3 className="text-xl font-bold text-slate-800">Patient #{String(apt.id).includes('-') ? String(apt.id).split('-')[1] : apt.id}</h3>
+                                <div className="flex flex-wrap gap-2 justify-end">
+                                  <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">{apt.consultationType || 'Consultation'}</Badge>
+                                  {apt.paymentStatus === 'PAID' ? (
+                                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-0">PAID</Badge>
+                                  ) : (
+                                    <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-200 border-0">UNPAID</Badge>
+                                  )}
+                                </div>
                               </div>
                               
                               <div className="grid grid-cols-2 gap-3 mb-4">
@@ -240,7 +456,7 @@ export default function DoctorDashboard() {
                                 </div>
                                 <div className="bg-slate-50 p-2.5 rounded-lg flex items-center gap-2">
                                   <Clock size={16} className="text-blue-500" />
-                                  <span className="text-sm font-semibold text-slate-700">{apt.appointmentTime}</span>
+                                  <span className="text-sm font-semibold text-slate-700">{formatAMPM(apt.appointmentTime)}</span>
                                 </div>
                               </div>
                               <p className="text-sm text-slate-600 line-clamp-1"><span className="font-semibold text-slate-800">Reason:</span> {apt.reason || apt.notes}</p>
@@ -254,8 +470,14 @@ export default function DoctorDashboard() {
                               </Button>
                               <Button 
                                 variant="outline"
-                                className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                                onClick={() => handleUpdateStatus(apt.id, 'COMPLETED')}
+                                className={`w-full ${apt.paymentStatus === 'PAID' ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' : 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'}`}
+                                onClick={() => {
+                                  if (apt.paymentStatus === 'PAID') {
+                                    handleMarkCompleteClick(apt);
+                                  } else {
+                                    toast({ title: 'Cảnh báo', description: 'Bệnh nhân chưa thanh toán, không thể hoàn thành khám.', variant: 'destructive' });
+                                  }
+                                }}
                               >
                                 <CheckCircle size={16} className="mr-2" /> Mark Complete
                               </Button>
@@ -267,6 +489,37 @@ export default function DoctorDashboard() {
                   </div>
                 )}
               </section>
+              )}
+
+              {/* History / Other Appointments */}
+              {(appliedFilterStatus === 'ALL' || appliedFilterStatus === 'COMPLETED' || appliedFilterStatus === 'CANCELLED') && (completedAppointments.length > 0 || cancelledAppointments.length > 0) && (
+                <section className="mt-8 pt-8 border-t border-slate-200">
+                  <div className="flex items-center gap-2 mb-6">
+                    <h2 className="text-xl font-bold text-slate-800">History (Completed & Cancelled)</h2>
+                  </div>
+                  <div className="space-y-4">
+                    {[...completedAppointments, ...cancelledAppointments].map(apt => (
+                      <Card key={apt.id} className={`border-0 shadow-sm overflow-hidden relative ${apt.status === 'CANCELLED' ? 'opacity-70' : ''}`}>
+                        <div className={`absolute top-0 left-0 w-1.5 h-full ${apt.status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                        <CardContent className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-bold text-slate-800">Patient #{String(apt.id).includes('-') ? String(apt.id).split('-')[1] : apt.id}</h3>
+                              <Badge className={apt.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}>
+                                {apt.status}
+                              </Badge>
+                            </div>
+                            <div className="flex gap-4 text-sm text-slate-500">
+                              <span className="flex items-center gap-1"><Calendar size={14}/> {new Date(apt.appointmentDate).toLocaleDateString()}</span>
+                              <span className="flex items-center gap-1"><Clock size={14}/> {formatAMPM(apt.appointmentTime)}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
 
             {/* Sidebar Column */}
@@ -298,8 +551,8 @@ export default function DoctorDashboard() {
                               {i !== 2 && <div className="w-0.5 h-full bg-blue-100 absolute top-2.5" />}
                             </div>
                             <div className="pb-3">
-                              <p className="text-sm font-bold text-slate-800">{apt.appointmentTime}</p>
-                              <p className="text-xs text-slate-500">Patient #{apt.id.split('-')[1]} • {apt.consultationType || 'Visit'}</p>
+                              <p className="text-sm font-bold text-slate-800">{formatAMPM(apt.appointmentTime)}</p>
+                              <p className="text-xs text-slate-500">Patient #{String(apt.id).includes('-') ? String(apt.id).split('-')[1] : apt.id} • {apt.consultationType || 'Visit'}</p>
                             </div>
                           </div>
                         ))}
@@ -326,6 +579,87 @@ export default function DoctorDashboard() {
           </div>
         </div>
       </main>
+
+      {/* Input Medical Record Dialog */}
+      <Dialog open={isRecordDialogOpen} onOpenChange={setIsRecordDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-3xl p-6 bg-white/95 backdrop-blur-xl border-0 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-slate-900">
+              Nhập Hồ Sơ Bệnh Án
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium">
+              Hoàn thành lịch khám cho bệnh nhân bằng cách ghi lại chẩn đoán và hướng điều trị.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmitRecord} className="space-y-5 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="diagnosis" className="text-sm font-bold text-slate-700 ml-1">
+                Chẩn đoán bệnh <span className="text-rose-500">*</span>
+              </Label>
+              <Textarea
+                id="diagnosis"
+                placeholder="Ví dụ: Cao huyết áp mức độ 1, cần theo dõi..."
+                value={recordForm.diagnosis}
+                onChange={(e) => setRecordForm({ ...recordForm, diagnosis: e.target.value })}
+                className="bg-slate-50/50 border-slate-100 focus:border-primary rounded-xl min-h-[80px]"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="treatment" className="text-sm font-bold text-slate-700 ml-1">
+                Hướng điều trị / Đơn thuốc
+              </Label>
+              <Textarea
+                id="treatment"
+                placeholder="Ví dụ: Amlodipine 5mg uống sáng 1 viên sau ăn..."
+                value={recordForm.treatment}
+                onChange={(e) => setRecordForm({ ...recordForm, treatment: e.target.value })}
+                className="bg-slate-50/50 border-slate-100 focus:border-primary rounded-xl min-h-[80px]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="text-sm font-bold text-slate-700 ml-1">
+                Ghi chú thêm
+              </Label>
+              <Textarea
+                id="notes"
+                placeholder="Lời dặn bác sĩ cho bệnh nhân..."
+                value={recordForm.notes}
+                onChange={(e) => setRecordForm({ ...recordForm, notes: e.target.value })}
+                className="bg-slate-50/50 border-slate-100 focus:border-primary rounded-xl min-h-[60px]"
+              />
+            </div>
+
+            <DialogFooter className="pt-4 gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsRecordDialogOpen(false)}
+                className="rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50"
+              >
+                Hủy bỏ
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmittingRecord}
+                className="rounded-xl font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
+              >
+                {isSubmittingRecord ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    Đang lưu...
+                  </span>
+                ) : (
+                  'Xác nhận hoàn thành'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

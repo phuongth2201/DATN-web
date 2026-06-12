@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Star, MapPin, Award, Stethoscope, Search } from 'lucide-react';
 import Link from 'next/link';
+import { apiService } from '@/services/api';
 
 export default function DoctorsPage() {
   const { doctors, isLoading, searchDoctors } = useDoctorStore();
@@ -14,15 +15,21 @@ export default function DoctorsPage() {
   const [minRating, setMinRating] = useState(0);
   const [keyword, setKeyword] = useState('');
 
-  const specializations = [
-    'Cardiology',
-    'Neurology',
-    'Orthopedics',
-    'Dermatology',
-    'Pediatrics',
-    'Psychiatry',
-    'General Practice',
-  ];
+  const [specializations, setSpecializations] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchSpecialties = async () => {
+      try {
+        const res = await apiService.getSpecialties();
+        if (res?.data) {
+          setSpecializations(res.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch specialties:', error);
+      }
+    };
+    fetchSpecialties();
+  }, []);
 
   useEffect(() => {
     searchDoctors({ keyword: '', specialization: '', minRating: 0 });
@@ -77,8 +84,8 @@ export default function DoctorsPage() {
                     >
                       <option value="">All Specialties</option>
                       {specializations.map((spec) => (
-                        <option key={spec} value={spec}>
-                          {spec}
+                        <option key={spec.id || spec.name} value={spec.name}>
+                          {spec.name}
                         </option>
                       ))}
                     </select>
@@ -152,7 +159,7 @@ export default function DoctorsPage() {
                         {doctor.fullName}
                       </h3>
                       <p className="text-primary font-semibold">
-                        {doctor.specialization || doctor.specialty}
+                        {doctor.specialization}
                       </p>
                     </div>
 

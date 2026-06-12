@@ -61,7 +61,9 @@ export default function DoctorDetailPage() {
 
     try {
       await bookAppointment({
-        timeSlotId: selectedSlotId,
+        doctorId: doctorId,
+        appointmentDate: selectedDate,
+        appointmentTime: selectedSlotTime || selectedSlotId, // Handle both cases depending on how slots are mapped
         patientId: user?.id,
         consultationType,
         symptoms,
