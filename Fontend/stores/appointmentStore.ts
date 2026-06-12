@@ -148,16 +148,20 @@ export const useAppointmentStore = create<AppointmentStore>((set) => ({
     try {
       const response = await apiService.initiatePayment(id, method);
       
-      // Update local state
+      // Update local state to PENDING
       set((state) => ({
         isLoading: false,
         appointments: state.appointments.map((apt) =>
-          String(apt.id) === String(id) ? { ...apt, paymentStatus: 'PAID' } : apt
+          String(apt.id) === String(id) ? { ...apt, paymentStatus: 'PENDING' } : apt
         ),
         currentAppointment: state.currentAppointment && String(state.currentAppointment.id) === String(id)
-          ? { ...state.currentAppointment, paymentStatus: 'PAID' }
+          ? { ...state.currentAppointment, paymentStatus: 'PENDING' }
           : state.currentAppointment
       }));
+      
+      if (response && response.checkoutUrl) {
+          window.location.href = response.checkoutUrl;
+      }
       
       return response;
     } catch (error: any) {

@@ -20,6 +20,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import vn.payos.PayOS;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
 
 @RestController
 @RequestMapping("/api")
@@ -28,15 +31,18 @@ public class PaymentResource {
     private final PaymentRepository paymentRepository;
     private final AppointmentRepository appointmentRepository;
     private final UserRepository userRepository;
+    private final PayOS payOS;
 
     public PaymentResource(
         PaymentRepository paymentRepository,
         AppointmentRepository appointmentRepository,
-        UserRepository userRepository
+        UserRepository userRepository,
+        PayOS payOS
     ) {
         this.paymentRepository = paymentRepository;
         this.appointmentRepository = appointmentRepository;
         this.userRepository = userRepository;
+        this.payOS = payOS;
     }
 
     @PostMapping("/payments/process")
@@ -56,13 +62,31 @@ public class PaymentResource {
         payment.setAppointment(appointment);
         payment.setAmount(request.amount());
         payment.setPaymentMethod(request.paymentMethod());
-        payment.setStatus("SUCCESS");
+        payment.setStatus("PENDING");
         payment.setTransactionId("TXN" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
         payment.setCreatedAt(Instant.now());
         paymentRepository.save(payment);
-        appointment.setPaymentStatus("PAID");
-        appointmentRepository.save(appointment);
-        return ResponseEntity.ok(toMap(payment));
+
+        try {
+            CreatePaymentLinkRequest paymentData = CreatePaymentLinkRequest.builder()
+                .orderCode(appointment.getId())
+                .amount(request.amount().longValue())
+                .description("Kham benh " + appointment.getId())
+                .returnUrl("http://localhost:3000/appointments?payment=success")
+                .cancelUrl("http://localhost:3000/appointments?payment=cancel")
+                .build();
+                
+            CreatePaymentLinkResponse res = payOS.paymentRequests().create(paymentData);
+            
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("paymentId", payment.getId());
+            result.put("checkoutUrl", res.getCheckoutUrl());
+            result.put("qrCode", res.getQrCode());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/payments/payos-webhook")

@@ -67,26 +67,14 @@ export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps
     setStep('processing');
     
     try {
-      // Gọi hàm thanh toán thật để lưu database
+      // Gọi hàm thanh toán thật để lưu database và lấy checkoutUrl từ backend
       await processPayment(appointment.id, selectedMethod.toUpperCase());
       
-      // Giả lập thời gian chờ xử lý 2.5 giây cho giống thật
-      await new Promise(resolve => setTimeout(resolve, 2500));
-      
-      // Tạo thông báo ảo thành công
-      addNotification({
-        title: 'Payment Successful',
-        message: `Your payment for appointment #${String(appointment.id).slice(0, 8)} has been processed.`,
-        type: 'payment',
-        appointmentId: String(appointment.id)
-      });
-
-      // Chuyển sang màn hình chúc mừng màu xanh
-      setStep('success');
+      // Ở store processPayment đã có lệnh redirect: window.location.href = response.checkoutUrl;
+      // Nên ở đây chúng ta chỉ việc đợi chuyển hướng.
     } catch (error) {
       toast({ title: 'Error', description: 'Thanh toán thất bại, vui lòng thử lại', variant: 'destructive' });
       setStep('selection');
-    } finally {
       setIsProcessing(false);
     }
   };
