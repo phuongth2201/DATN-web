@@ -4,10 +4,15 @@ import hospital.domain.Doctor;
 import hospital.domain.Review;
 import hospital.repository.AppointmentRepository;
 import hospital.repository.DoctorRepository;
+import hospital.repository.HospitalRepository;
 import hospital.repository.ReviewRepository;
+import hospital.repository.SpecialtyRepository;
+import hospital.repository.UserRepository;
+import hospital.security.SecurityUtils;
 import hospital.service.dto.PageResponseDTO;
 import hospital.service.dto.PaginationDTO;
 import hospital.service.dto.SpecialtyDTO;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -23,20 +28,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.access.prepost.PreAuthorize;
-import hospital.security.SecurityUtils;
-import hospital.repository.UserRepository;
-import hospital.repository.SpecialtyRepository;
-import hospital.repository.HospitalRepository;
-import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -65,7 +65,6 @@ public class DoctorResource {
         this.specialtyRepository = specialtyRepository;
         this.hospitalRepository = hospitalRepository;
     }
-
 
     @GetMapping("/doctors")
     public ResponseEntity<PageResponseDTO<Map<String, Object>>> getDoctors(
@@ -120,12 +119,12 @@ public class DoctorResource {
     public ResponseEntity<Map<String, Object>> getCurrentDoctor() {
         String login = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new IllegalStateException("User not logged in"));
         hospital.domain.User user = userRepository.findOneByLogin(login).orElseThrow(() -> new IllegalStateException("User not found"));
-        
+
         Optional<Doctor> doctorOpt = doctorRepository.findByEmail(user.getEmail());
         if (doctorOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(toDetail(doctorOpt.get()));
+        return ResponseEntity.ok(toDetail(doctorOpt.orElseThrow()));
     }
 
     @PostMapping("/doctors/onboarding")
@@ -133,7 +132,7 @@ public class DoctorResource {
     public ResponseEntity<Map<String, Object>> onboardDoctor(@Valid @RequestBody OnboardingRequest request) {
         String login = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new IllegalStateException("User not logged in"));
         hospital.domain.User user = userRepository.findOneByLogin(login).orElseThrow(() -> new IllegalStateException("User not found"));
-        
+
         if (doctorRepository.findByEmail(user.getEmail()).isPresent()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Hồ sơ bác sĩ cho email này đã tồn tại"));
         }
@@ -156,7 +155,7 @@ public class DoctorResource {
 
         doctor.setRating(5.0); // Default rating
         doctor.setReviewCount(0);
-        
+
         Doctor saved = doctorRepository.save(doctor);
         return ResponseEntity.ok(Map.of("message", "Hồ sơ bác sĩ đã được tạo thành công", "doctor", toDetail(saved)));
     }
