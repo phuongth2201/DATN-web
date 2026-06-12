@@ -20,6 +20,7 @@ export default function AppointmentsPage() {
   const { toast } = useToast();
   const [selectedAptToPay, setSelectedAptToPay] = useState<any>(null);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [filterDate, setFilterDate] = useState<string>('');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -79,19 +80,36 @@ export default function AppointmentsPage() {
             </Link>
           </div>
 
-          {/* Filter Tabs */}
+          {/* Filter Section */}
           {!isLoading && appointments.length > 0 && (
-            <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
-              {['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'].map((status) => (
-                <Button
-                  key={status}
-                  variant={filterStatus === status ? 'default' : 'outline'}
-                  onClick={() => setFilterStatus(status)}
-                  className={`rounded-full px-6 transition-all ${filterStatus === status ? 'bg-primary text-white shadow-md' : 'bg-white hover:bg-slate-50'}`}
-                >
-                  {status === 'ALL' ? 'All Appointments' : status.charAt(0) + status.slice(1).toLowerCase()}
-                </Button>
-              ))}
+            <div className="flex flex-col md:flex-row md:items-center gap-4 mb-8">
+              <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide flex-1">
+                {['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'].map((status) => (
+                  <Button
+                    key={status}
+                    variant={filterStatus === status ? 'default' : 'outline'}
+                    onClick={() => setFilterStatus(status)}
+                    className={`rounded-full px-6 transition-all whitespace-nowrap ${filterStatus === status ? 'bg-primary text-white shadow-md' : 'bg-white hover:bg-slate-50'}`}
+                  >
+                    {status === 'ALL' ? 'All Appointments' : status.charAt(0) + status.slice(1).toLowerCase()}
+                  </Button>
+                ))}
+              </div>
+              
+              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm w-fit focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                <Calendar className="w-4 h-4 text-slate-500" />
+                <input 
+                  type="date" 
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  className="bg-transparent border-none outline-none text-sm text-slate-700 font-medium cursor-pointer"
+                />
+                {filterDate && (
+                  <button onClick={() => setFilterDate('')} className="text-slate-400 hover:text-rose-500 transition-colors">
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -116,14 +134,23 @@ export default function AppointmentsPage() {
                 </Link>
               </CardContent>
             </Card>
-          ) : appointments.filter(apt => filterStatus === 'ALL' || apt.status === filterStatus).length === 0 ? (
+          ) : appointments.filter(apt => (filterStatus === 'ALL' || apt.status === filterStatus) && (filterDate === '' || apt.appointmentDate === filterDate)).length === 0 ? (
             <div className="text-center py-16 bg-white rounded-3xl shadow-sm border border-slate-100">
               <h3 className="text-xl font-bold text-slate-700 mb-2">No appointments found</h3>
-              <p className="text-slate-500">There are no appointments with the status "{filterStatus}".</p>
+              <p className="text-slate-500">There are no appointments matching your filters.</p>
+              {(filterStatus !== 'ALL' || filterDate !== '') && (
+                <Button 
+                  variant="outline" 
+                  className="mt-4 rounded-full"
+                  onClick={() => { setFilterStatus('ALL'); setFilterDate(''); }}
+                >
+                  Clear Filters
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-6">
-              {appointments.filter(apt => filterStatus === 'ALL' || apt.status === filterStatus).map((appointment) => (
+              {appointments.filter(apt => (filterStatus === 'ALL' || apt.status === filterStatus) && (filterDate === '' || apt.appointmentDate === filterDate)).map((appointment) => (
                 <Card key={appointment.id} className="border-0 shadow-md hover:shadow-lg transition-shadow overflow-hidden">
                   <CardContent className="p-0">
                     <div className="grid md:grid-cols-4 gap-6 p-8">
