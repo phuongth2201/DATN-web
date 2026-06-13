@@ -370,7 +370,11 @@ export default function DoctorDashboard() {
                   </div>
                   <div className="space-y-4">
                     {pendingAppointments.map(apt => (
-                      <Card key={apt.id} className="border border-amber-100 shadow-sm hover:shadow-md transition-all overflow-hidden relative">
+                      <Card 
+                        key={apt.id} 
+                        className="border border-amber-100 shadow-sm hover:shadow-md transition-all overflow-hidden relative cursor-pointer"
+                        onClick={() => router.push(`/doctor-dashboard/appointments/${apt.id}`)}
+                      >
                         <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-400" />
                         <CardContent className="p-6">
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -386,13 +390,19 @@ export default function DoctorDashboard() {
                               <Button 
                                 variant="outline" 
                                 className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50"
-                                onClick={() => handleUpdateStatus(apt.id, 'CANCELLED')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateStatus(apt.id, 'CANCELLED');
+                                }}
                               >
                                 Decline
                               </Button>
                               <Button 
                                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20"
-                                onClick={() => handleUpdateStatus(apt.id, 'CONFIRMED')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateStatus(apt.id, 'CONFIRMED');
+                                }}
                               >
                                 Approve
                               </Button>
@@ -432,7 +442,11 @@ export default function DoctorDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {scheduledAppointments.map(apt => (
-                      <Card key={apt.id} className="border-0 shadow-sm hover:shadow-md transition-all overflow-hidden relative">
+                      <Card 
+                        key={apt.id} 
+                        className="border-0 shadow-sm hover:shadow-md transition-all overflow-hidden relative cursor-pointer"
+                        onClick={() => router.push(`/doctor-dashboard/appointments/${apt.id}`)}
+                      >
                         <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500" />
                         <CardContent className="p-0">
                           <div className="flex flex-col md:flex-row">
@@ -465,13 +479,18 @@ export default function DoctorDashboard() {
                             <div className="bg-slate-50 p-6 flex flex-col justify-center gap-3 border-t md:border-t-0 md:border-l border-slate-100 md:min-w-[220px]">
                               <Button 
                                 className="w-full bg-slate-800 hover:bg-slate-900 shadow-md"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/doctor-dashboard/appointments/${apt.id}`);
+                                }}
                               >
-                                <FileText size={16} className="mr-2" /> View Records
+                                <FileText size={16} className="mr-2" /> View Details
                               </Button>
                               <Button 
                                 variant="outline"
                                 className={`w-full ${apt.paymentStatus === 'PAID' ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' : 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'}`}
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   if (apt.paymentStatus === 'PAID') {
                                     handleMarkCompleteClick(apt);
                                   } else {
@@ -499,7 +518,11 @@ export default function DoctorDashboard() {
                   </div>
                   <div className="space-y-4">
                     {[...completedAppointments, ...cancelledAppointments].map(apt => (
-                      <Card key={apt.id} className={`border-0 shadow-sm overflow-hidden relative ${apt.status === 'CANCELLED' ? 'opacity-70' : ''}`}>
+                      <Card 
+                        key={apt.id} 
+                        className={`border-0 shadow-sm overflow-hidden relative cursor-pointer hover:shadow-md transition-shadow ${apt.status === 'CANCELLED' ? 'opacity-70' : ''}`}
+                        onClick={() => router.push(`/doctor-dashboard/appointments/${apt.id}`)}
+                      >
                         <div className={`absolute top-0 left-0 w-1.5 h-full ${apt.status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                         <CardContent className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                           <div>
