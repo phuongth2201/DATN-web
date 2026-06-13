@@ -342,15 +342,22 @@ export default function DoctorAppointmentDetailPage() {
                 {currentAppointment.status === 'CONFIRMED' && (
                   <>
                     <Button
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-6"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-6 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => setIsRecordModalOpen(true)}
+                      disabled={currentAppointment.paymentStatus !== 'PAID'}
+                      title={currentAppointment.paymentStatus !== 'PAID' ? 'Patient must pay before you can complete the appointment' : ''}
                     >
                       <FileText className="mr-2" size={18} />
-                      Add Record & Complete
+                      {currentAppointment.paymentStatus !== 'PAID' ? 'Awaiting Payment' : 'Add Record & Complete'}
                     </Button>
+                    {currentAppointment.paymentStatus !== 'PAID' && (
+                      <p className="text-xs text-center text-amber-600 mt-2 font-medium">
+                        Patient must pay the consultation fee first.
+                      </p>
+                    )}
                     <Button
                       variant="outline"
-                      className="w-full text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                      className="w-full text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 mt-4"
                       onClick={() => handleUpdateStatus('CANCELLED')}
                     >
                       Cancel Appointment
