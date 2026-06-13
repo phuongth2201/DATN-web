@@ -73,7 +73,7 @@ export function Navbar() {
     markAsRead(n.id);
     if (n.relatedId) {
       if (user?.role?.toUpperCase() === 'ROLE_DOCTOR' || user?.role?.toUpperCase() === 'DOCTOR') {
-        router.push('/doctor-dashboard');
+        router.push(`/doctor-dashboard/appointments/${n.relatedId}`);
       } else if (user?.role?.toUpperCase() === 'ROLE_ADMIN' || user?.role?.toUpperCase() === 'ADMIN') {
         router.push('/admin/appointments');
       } else {
