@@ -72,7 +72,13 @@ export function Navbar() {
   const handleNotificationClick = (n: any) => {
     markAsRead(n.id);
     if (n.relatedId) {
-      router.push(`/appointments/${n.relatedId}`);
+      if (user?.role?.toUpperCase() === 'ROLE_DOCTOR' || user?.role?.toUpperCase() === 'DOCTOR') {
+        router.push('/doctor-dashboard');
+      } else if (user?.role?.toUpperCase() === 'ROLE_ADMIN' || user?.role?.toUpperCase() === 'ADMIN') {
+        router.push('/admin/appointments');
+      } else {
+        router.push(`/appointments/${n.relatedId}`);
+      }
       setIsNotifyOpen(false);
     }
   };
