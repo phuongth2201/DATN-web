@@ -33,13 +33,13 @@ public class NotificationService {
 
     public NotificationDTO createNotification(Long userId, String title, String message, String type, Long relatedId) {
         log.debug("Request to create Notification for userId: {}", userId);
-        Optional<User> user = userRepository.findById(userId);
-        if (user.isEmpty()) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
             return null;
         }
 
         Notification notification = new Notification();
-        notification.setUser(user.get());
+        notification.setUser(user);
         notification.setTitle(title);
         notification.setMessage(message);
         notification.setType(type);
