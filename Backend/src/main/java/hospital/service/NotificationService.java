@@ -13,8 +13,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Optional;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 @Transactional
@@ -25,6 +31,9 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
     private final UserRepository userRepository;
+
+    // SSE Emitters for real-time notifications
+    private final Map<Long, List<SseEmitter>> userEmitters = new ConcurrentHashMap<>();
 
     public NotificationService(NotificationRepository notificationRepository, NotificationMapper notificationMapper, UserRepository userRepository) {
         this.notificationRepository = notificationRepository;
@@ -47,7 +56,55 @@ public class NotificationService {
         notification.setRelatedId(relatedId);
         
         notification = notificationRepository.save(notification);
-        return notificationMapper.toDto(notification);
+        NotificationDTO dto = notificationMapper.toDto(notification);
+
+        // Notify via SSE
+        List<SseEmitter> emitters = userEmitters.get(userId);
+        if (emitters != null) {
+            List<SseEmitter> deadEmitters = new ArrayList<>();
+            for (SseEmitter emitter : emitters) {
+                try {
+                    emitter.send(SseEmitter.event().name("NOTIFICATION").data(dto));
+                } catch (Exception e) {
+                    deadEmitters.add(emitter);
+                }
+            }
+            emitters.removeAll(deadEmitters);
+        }
+
+        return dto;
+    }
+
+    public SseEmitter createSseEmitterForCurrentUser() {
+        Long userId = SecurityUtils.getCurrentUserLogin()
+            .flatMap(userRepository::findOneByLogin)
+            .map(User::getId)
+            .orElseThrow(() -> new IllegalStateException("User not found"));
+            
+        SseEmitter emitter = new SseEmitter(60 * 60 * 1000L); // 1 hour timeout
+        userEmitters.computeIfAbsent(userId, k -> new CopyOnWriteArrayList<>()).add(emitter);
+
+        emitter.onCompletion(() -> removeEmitter(userId, emitter));
+        emitter.onTimeout(() -> removeEmitter(userId, emitter));
+        emitter.onError((e) -> removeEmitter(userId, emitter));
+        
+        try {
+            emitter.send(SseEmitter.event().name("INIT").data("Connected"));
+        } catch (Exception e) {
+            removeEmitter(userId, emitter);
+        }
+
+        return emitter;
+    }
+
+    private void removeEmitter(Long userId, SseEmitter emitter) {
+        List<SseEmitter> emitters = userEmitters.get(userId);
+        if (emitters != null) {
+            emitters.remove(emitter);
+            if (emitters.isEmpty()) {
+                userEmitters.remove(userId);
+            }
+        }
     }
 
     @Transactional(readOnly = true)

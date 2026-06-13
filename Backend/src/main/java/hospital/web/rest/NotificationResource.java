@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Map;
 
@@ -24,6 +25,12 @@ public class NotificationResource {
 
     public NotificationResource(NotificationService notificationService) {
         this.notificationService = notificationService;
+    }
+
+    @GetMapping(value = "/notifications/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamNotifications() {
+        log.debug("REST request to stream Notifications");
+        return notificationService.createSseEmitterForCurrentUser();
     }
 
     @GetMapping("/notifications")

@@ -62,6 +62,9 @@ public class SecurityConfiguration {
                     }
                 }
             }
+            if (request.getParameter("token") != null && !request.getParameter("token").isBlank()) {
+                return request.getParameter("token");
+            }
             return null;
         };
     }

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { useAppointmentStore } from '@/stores/appointmentStore';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { API_BASE_URL } from '@/services/api';
+import Cookie from 'js-cookie';
 import { Button } from '@/components/ui/button';
 import { Menu, X, LogOut, Bell, Calendar, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -30,11 +32,24 @@ export function Navbar() {
       fetchUnreadCount();
       fetchNotifications(1);
       
-      // Real-time polling every 5s
-      const interval = setInterval(() => {
+      const token = Cookie.get('accessToken') || localStorage.getItem('accessToken');
+      if (!token) return;
+
+      const eventSource = new EventSource(`${API_BASE_URL}/api/notifications/stream?token=${token}`);
+      
+      eventSource.addEventListener('NOTIFICATION', (event) => {
+        // When a new notification arrives via SSE, trigger our smart update logic
         fetchUnreadCount();
-      }, 5000);
-      return () => clearInterval(interval);
+      });
+
+      eventSource.onerror = (error) => {
+        console.error('SSE Error:', error);
+        eventSource.close();
+      };
+
+      return () => {
+        eventSource.close();
+      };
     }
   }, [isAuthenticated, fetchUnreadCount, fetchNotifications]);
 
