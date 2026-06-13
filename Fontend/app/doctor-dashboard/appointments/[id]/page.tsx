@@ -350,11 +350,7 @@ export default function DoctorAppointmentDetailPage() {
                       <FileText className="mr-2" size={18} />
                       {currentAppointment.paymentStatus !== 'PAID' ? 'Awaiting Payment' : 'Add Record & Complete'}
                     </Button>
-                    {currentAppointment.paymentStatus !== 'PAID' && (
-                      <p className="text-xs text-center text-amber-600 mt-2 font-medium">
-                        Patient must pay the consultation fee first.
-                      </p>
-                    )}
+                    {currentAppointment.paymentStatus !== 'PAID'}
                     <Button
                       variant="outline"
                       className="w-full text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 mt-4"

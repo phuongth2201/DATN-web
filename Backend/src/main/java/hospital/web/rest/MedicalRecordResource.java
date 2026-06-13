@@ -52,7 +52,14 @@ public class MedicalRecordResource {
         @RequestParam(defaultValue = "10") int limit
     ) {
         String login = currentLogin();
-        List<MedicalRecord> records = medicalRecordRepository.findByUserLoginOrderByCreatedAtDesc(login);
+        List<MedicalRecord> records;
+        if (SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_DOCTOR")) {
+            hospital.domain.User currentUser = userRepository.findOneByLogin(login).orElseThrow();
+            records = medicalRecordRepository.findByDoctorEmailOrderByCreatedAtDesc(currentUser.getEmail());
+        } else {
+            records = medicalRecordRepository.findByUserLoginOrderByCreatedAtDesc(login);
+        }
+        
         Page<MedicalRecord> pageData = new PageImpl<>(
             slice(records, page, limit),
             PageRequest.of(Math.max(page - 1, 0), limit),

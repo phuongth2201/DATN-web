@@ -9,4 +9,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, Long>, JpaSpecificationExecutor<MedicalRecord> {
     List<MedicalRecord> findByUserLoginOrderByCreatedAtDesc(String login);
+    List<MedicalRecord> findByDoctorEmailOrderByCreatedAtDesc(String email);
 }
