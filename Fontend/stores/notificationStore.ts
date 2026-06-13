@@ -60,7 +60,15 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   fetchUnreadCount: async () => {
     try {
       const response = await apiService.getUnreadNotificationCount();
-      set({ unreadCount: response.count });
+      const currentCount = get().unreadCount;
+      
+      if (response.count !== currentCount) {
+        set({ unreadCount: response.count });
+        // If unread count changed, refresh notifications if we are on page 1
+        if (get().page === 1) {
+          get().fetchNotifications(1);
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch unread count:', error);
     }

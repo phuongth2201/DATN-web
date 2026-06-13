@@ -208,15 +208,15 @@ public class AdminResource {
 
         if (appointment.getUser() != null) {
             String statusMsg = "";
-            if ("CONFIRMED".equals(request.status())) statusMsg = "đã được xác nhận";
-            else if ("CANCELLED".equals(request.status())) statusMsg = "đã bị hủy";
-            else if ("COMPLETED".equals(request.status())) statusMsg = "đã hoàn thành";
+            if ("CONFIRMED".equals(request.status())) statusMsg = "has been confirmed";
+            else if ("CANCELLED".equals(request.status())) statusMsg = "has been cancelled";
+            else if ("COMPLETED".equals(request.status())) statusMsg = "has been completed";
             
             if (!statusMsg.isEmpty()) {
                 notificationService.createNotification(
                     appointment.getUser().getId(),
-                    "Cập nhật lịch khám",
-                    "Lịch khám của bạn lúc " + appointment.getAppointmentTime() + " ngày " + appointment.getAppointmentDate() + " " + statusMsg + ".",
+                    "Appointment Update",
+                    "Your appointment at " + appointment.getAppointmentTime() + " on " + appointment.getAppointmentDate() + " " + statusMsg + ".",
                     "APPOINTMENT_" + request.status(),
                     appointment.getId()
                 );
@@ -224,7 +224,7 @@ public class AdminResource {
         }
 
         return ResponseEntity.ok(
-            Map.of("id", id, "status", appointment.getStatus().name(), "message", "Trạng thái lịch khám đã được cập nhật")
+            Map.of("id", id, "status", appointment.getStatus().name(), "message", "Appointment status updated successfully")
         );
     }
 

@@ -30,10 +30,10 @@ export function Navbar() {
       fetchUnreadCount();
       fetchNotifications(1);
       
-      // Optional: Polling every 30s
+      // Real-time polling every 5s
       const interval = setInterval(() => {
         fetchUnreadCount();
-      }, 30000);
+      }, 5000);
       return () => clearInterval(interval);
     }
   }, [isAuthenticated, fetchUnreadCount, fetchNotifications]);

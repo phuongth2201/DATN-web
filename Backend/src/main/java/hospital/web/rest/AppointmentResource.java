@@ -79,8 +79,8 @@ public class AppointmentResource {
         userRepository.findOneByEmailIgnoreCase(doctor.getEmail()).ifPresent(doctorUser -> {
             notificationService.createNotification(
                 doctorUser.getId(),
-                "Lịch hẹn mới",
-                "Bạn có lịch khám mới từ bệnh nhân " + user.getLogin() + " vào lúc " + requestedTime + " ngày " + request.appointmentDate(),
+                "New Appointment",
+                "You have a new appointment from patient " + user.getLogin() + " at " + requestedTime + " on " + request.appointmentDate() + ".",
                 "APPOINTMENT_NEW",
                 appointment.getId()
             );
@@ -156,8 +156,8 @@ public class AppointmentResource {
         if (appointment.getUser() != null) {
             notificationService.createNotification(
                 appointment.getUser().getId(),
-                "Lịch hẹn thay đổi",
-                "Lịch khám của bạn đã được dời sang " + requestedTime + " ngày " + request.appointmentDate() + ". Vui lòng chờ duyệt lại.",
+                "Appointment Rescheduled",
+                "Your appointment has been rescheduled to " + requestedTime + " on " + request.appointmentDate() + ". Please wait for confirmation again.",
                 "APPOINTMENT_UPDATED",
                 appointment.getId()
             );
@@ -190,8 +190,8 @@ public class AppointmentResource {
             userRepository.findOneByEmailIgnoreCase(appointment.getDoctor().getEmail()).ifPresent(doctorUser -> {
                 notificationService.createNotification(
                     doctorUser.getId(),
-                    "Lịch hẹn bị hủy",
-                    "Bệnh nhân " + currentUser.getLogin() + " đã hủy lịch khám lúc " + appointment.getAppointmentTime() + " ngày " + appointment.getAppointmentDate(),
+                    "Appointment Cancelled",
+                    "Patient " + currentUser.getLogin() + " has cancelled the appointment at " + appointment.getAppointmentTime() + " on " + appointment.getAppointmentDate() + ".",
                     "APPOINTMENT_CANCELED",
                     appointment.getId()
                 );
@@ -200,8 +200,8 @@ public class AppointmentResource {
             // Admin/Doctor cancelled, notify patient
             notificationService.createNotification(
                 appointment.getUser().getId(),
-                "Lịch hẹn bị hủy",
-                "Rất tiếc, lịch hẹn khám lúc " + appointment.getAppointmentTime() + " ngày " + appointment.getAppointmentDate() + " của bạn đã bị hủy.",
+                "Appointment Cancelled",
+                "We're sorry, your appointment at " + appointment.getAppointmentTime() + " on " + appointment.getAppointmentDate() + " has been cancelled.",
                 "APPOINTMENT_CANCELED",
                 appointment.getId()
             );
