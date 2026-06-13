@@ -24,9 +24,9 @@ interface PaymentModalProps {
 }
 
 const PAYMENT_METHODS = [
-  { id: 'vnpay', name: 'VNPay', icon: Wallet, color: 'bg-blue-50 text-blue-600', description: 'Thanh toán qua cổng VNPay' },
-  { id: 'momo', name: 'Momo', icon: QrCode, color: 'bg-pink-50 text-pink-600', description: 'Ví điện tử Momo' },
-  { id: 'transfer', name: 'Chuyển khoản (QR)', icon: CreditCard, color: 'bg-indigo-50 text-indigo-600', description: 'Quét mã QR (Miễn phí giao dịch)' },
+  { id: 'vnpay', name: 'VNPay', icon: Wallet, color: 'bg-blue-50 text-blue-600', description: 'Pay via VNPay gateway' },
+  { id: 'momo', name: 'Momo', icon: QrCode, color: 'bg-pink-50 text-pink-600', description: 'Momo E-Wallet' },
+  { id: 'transfer', name: 'Bank Transfer (QR)', icon: CreditCard, color: 'bg-indigo-50 text-indigo-600', description: 'Scan QR code (Zero fees)' },
 ];
 
 export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps) {
@@ -67,13 +67,13 @@ export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps
     setStep('processing');
     
     try {
-      // Gọi hàm thanh toán thật để lưu database và lấy checkoutUrl từ backend
+      // Call real payment API to save to DB and get checkoutUrl from backend
       await processPayment(appointment.id, selectedMethod.toUpperCase());
       
-      // Ở store processPayment đã có lệnh redirect: window.location.href = response.checkoutUrl;
-      // Nên ở đây chúng ta chỉ việc đợi chuyển hướng.
+      // The processPayment store already has a redirect: window.location.href = response.checkoutUrl;
+      // So here we just wait for the redirect.
     } catch (error) {
-      toast({ title: 'Error', description: 'Thanh toán thất bại, vui lòng thử lại', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Payment failed, please try again', variant: 'destructive' });
       setStep('selection');
       setIsProcessing(false);
     }
@@ -121,8 +121,8 @@ export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps
                 <div className="flex justify-between items-end mb-4">
                   <div>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Amount</span>
-                    <p className="text-3xl font-black text-slate-900">5.000đ</p>
-                    <p className="text-xs text-slate-400 line-through">{Number(appointment.price || 500000).toLocaleString('vi-VN')}đ</p>
+                    <p className="text-3xl font-black text-slate-900">5.000 đ</p>
+                    <p className="text-xs text-slate-400 line-through">{Number(appointment.price || 500000).toLocaleString('en-US')} đ</p>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Consultation</span>
@@ -178,17 +178,17 @@ export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps
 
           {step === 'qr_code' && (
             <div className="py-8 flex flex-col items-center text-center">
-              <h3 className="text-xl font-black text-slate-900 mb-2">
-                {selectedMethod === 'momo' ? 'Quét mã MoMo' : 'Quét mã QR để thanh toán'}
+              <h3 className="text-lg font-bold text-slate-900 mb-1">
+                {selectedMethod === 'momo' ? 'Scan MoMo QR' : 'Scan QR code to pay'}
               </h3>
-              <p className="text-slate-500 mb-6 font-medium">
-                {selectedMethod === 'momo' ? 'Sử dụng ứng dụng MoMo để quét mã' : 'Sử dụng ứng dụng ngân hàng để quét mã QR'}
+              <p className="text-sm text-slate-500">
+                {selectedMethod === 'momo' ? 'Use MoMo app to scan the code' : 'Use your banking app to scan the QR code'}
               </p>
               
               <div className="bg-white p-4 rounded-3xl shadow-xl border border-slate-100 mb-6 relative">
                 {selectedMethod === 'momo' ? (
                   <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=2|99|0394116490|||0|0|5000|Thanh toan lich kham ${appointment.id}|`} 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=2|99|0394116490|||0|0|5000|Payment for appointment ${appointment.id}|`} 
                     alt="MoMo QR Code" 
                     className="w-64 h-64 object-contain rounded-2xl"
                   />
@@ -201,12 +201,12 @@ export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps
                 )}
                 <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-3xl border-2 border-emerald-400 opacity-0 animate-in fade-in duration-1000 delay-1000">
                   <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-2" />
-                  <p className="text-emerald-700 font-bold text-sm bg-white/80 px-3 py-1 rounded-full">Đang chờ thanh toán ({countdown}s)</p>
+                  <p className="text-emerald-700 font-bold text-sm bg-white/80 px-3 py-1 rounded-full">Awaiting payment ({countdown}s)</p>
                 </div>
               </div>
 
               <div className="bg-amber-50 text-amber-700 p-4 rounded-2xl mb-8 text-sm text-left">
-                <p><strong>Lưu ý:</strong> Giữ nguyên nội dung chuyển khoản. Hệ thống sẽ tự động ghi nhận sau khi bạn chuyển khoản thành công.</p>
+                <p><strong>Note:</strong> Keep the transfer content exactly as shown. The system will automatically confirm upon successful transfer.</p>
               </div>
 
               <div className="flex w-full gap-4">
@@ -221,7 +221,7 @@ export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps
                   onClick={executePayment}
                   className="flex-1 h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                 >
-                  Tôi đã chuyển khoản
+                  I have transferred the money
                 </Button>
               </div>
             </div>

@@ -316,7 +316,7 @@ export default function AdminSpecialtiesPage() {
                     value={selectedSpecialty.vietnamName}
                     onChange={(e) => setSelectedSpecialty({ ...selectedSpecialty, vietnamName: e.target.value })}
                     className="rounded-xl border-slate-200 h-11 focus:ring-blue-600"
-                    placeholder="vd: Tim mạch"
+                    placeholder="e.g. Cardiology"
                   />
                 </div>
               </div>

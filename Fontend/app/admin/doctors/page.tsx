@@ -213,8 +213,8 @@ export default function AdminDoctorsPage() {
       await apiService.deleteDoctor(doctorToDelete.id);
       setDoctors(doctors.filter((d) => d.id !== doctorToDelete.id));
       toast({
-        title: 'Thành công',
-        description: 'Bác sĩ đã được xóa khỏi hệ thống.',
+        title: 'Success',
+        description: 'Doctor has been deleted successfully.',
       });
       setIsDeleteAlertOpen(false);
     } catch (error: any) {
@@ -225,8 +225,8 @@ export default function AdminDoctorsPage() {
         setIsConflictAlertOpen(true);
       } else {
         toast({
-          title: 'Lỗi khi xóa',
-          description: error.response?.data?.message || 'Đã có lỗi xảy ra khi xóa bác sĩ.',
+          title: 'Delete Error',
+          description: error.response?.data?.message || 'An error occurred while deleting the doctor.',
           variant: 'destructive',
         });
       }
@@ -519,19 +519,19 @@ export default function AdminDoctorsPage() {
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận xóa bác sĩ?</AlertDialogTitle>
+            <AlertDialogTitle>Confirm doctor deletion?</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa bác sĩ <span className="font-bold text-gray-900">{doctorToDelete?.fullName}</span>? 
-              Hành động này không thể hoàn tác.
+              Are you sure you want to delete doctor <span className="font-bold text-gray-900">{doctorToDelete?.fullName}</span>? 
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDelete}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
-              Xác nhận xóa
+              Confirm Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -541,21 +541,21 @@ export default function AdminDoctorsPage() {
       <AlertDialog open={isConflictAlertOpen} onOpenChange={setIsConflictAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600">Không thể xóa bác sĩ</AlertDialogTitle>
+            <AlertDialogTitle className="text-red-600">Cannot delete doctor</AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p>
-                Bác sĩ <span className="font-bold">{doctorToDelete?.fullName}</span> hiện đang có dữ liệu liên quan trong hệ thống 
-                (lịch hẹn, hồ sơ bệnh án hoặc đánh giá).
+                Doctor <span className="font-bold">{doctorToDelete?.fullName}</span> currently has related data in the system 
+                (appointments, medical records, or reviews).
               </p>
               <p className="bg-amber-50 p-3 rounded-md border border-amber-200 text-amber-800">
-                <strong>Giải pháp:</strong> Hệ thống yêu cầu giữ lại thông tin này để phục vụ báo cáo. 
-                Bạn hãy sử dụng nút <strong className="text-red-600">"Deactivate"</strong> để ẩn bác sĩ khỏi danh sách thay vì xóa hoàn toàn.
+                <strong>Solution:</strong> The system requires keeping this information for reporting purposes. 
+                Please use the <strong className="text-red-600">"Deactivate"</strong> button to hide the doctor from the list instead of deleting them completely.
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setIsConflictAlertOpen(false)}>
-              Đã hiểu
+              Understood
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -411,7 +411,7 @@ export default function AdminAppointmentsPage() {
                 <textarea
                   value={recordForm.diagnosis}
                   onChange={(e) => setRecordForm({ ...recordForm, diagnosis: e.target.value })}
-                  placeholder="e.g. Viêm họng cấp, Viêm xoang..."
+                  placeholder="e.g. Acute pharyngitis, Sinusitis..."
                   className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-medium resize-none transition-all"
                   rows={2}
                   required
@@ -425,7 +425,7 @@ export default function AdminAppointmentsPage() {
                 <textarea
                   value={recordForm.treatment}
                   onChange={(e) => setRecordForm({ ...recordForm, treatment: e.target.value })}
-                  placeholder="e.g. Uống thuốc kháng sinh trong 5 ngày..."
+                  placeholder="e.g. Take antibiotics for 5 days..."
                   className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-medium resize-none transition-all"
                   rows={2}
                   required
@@ -439,7 +439,7 @@ export default function AdminAppointmentsPage() {
                 <textarea
                   value={recordForm.notes}
                   onChange={(e) => setRecordForm({ ...recordForm, notes: e.target.value })}
-                  placeholder="e.g. Tái khám sau 1 tuần, nghỉ ngơi..."
+                  placeholder="e.g. Re-examination after 1 week, rest..."
                   className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-medium resize-none transition-all"
                   rows={2}
                 />

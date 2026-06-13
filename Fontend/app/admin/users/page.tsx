@@ -187,11 +187,11 @@ export default function AdminUsersPage() {
     } catch (error: any) {
       console.error('Failed to delete user:', error);
       
-      // Hiển thị dialog thông báo lỗi đẹp mắt
+      // Show beautiful error dialog
       if (error.response?.status === 500 || error.response?.status === 400) {
-        setErrorAlertMessage('Người dùng này đang có lịch hẹn hoặc dữ liệu liên quan, không thể xóa trực tiếp!');
+        setErrorAlertMessage('This user currently has appointments or related data, and cannot be deleted directly!');
       } else {
-        setErrorAlertMessage('Đã có lỗi xảy ra trong quá trình xóa người dùng. Vui lòng thử lại sau.');
+        setErrorAlertMessage('An error occurred during user deletion. Please try again later.');
       }
       setIsErrorAlertOpen(true);
     }
@@ -439,7 +439,7 @@ export default function AdminUsersPage() {
               <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
                 <AlertCircle size={24} />
               </div>
-              <AlertDialogTitle className="text-xl">Không thể xóa</AlertDialogTitle>
+              <AlertDialogTitle className="text-xl">Cannot delete</AlertDialogTitle>
             </div>
             <AlertDialogDescription className="text-gray-600 py-2 text-base">
               {errorAlertMessage}
@@ -447,7 +447,7 @@ export default function AdminUsersPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white font-semibold">
-              Đã hiểu
+              Understood
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

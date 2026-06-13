@@ -172,8 +172,8 @@ export default function DoctorDashboard() {
     if (!selectedApt) return;
     if (!recordForm.diagnosis.trim()) {
       toast({
-        title: 'Lỗi xác thực',
-        description: 'Vui lòng nhập chẩn đoán bệnh',
+        title: 'Validation Error',
+        description: 'Please enter the diagnosis',
         variant: 'destructive'
       });
       return;
@@ -195,8 +195,8 @@ export default function DoctorDashboard() {
       await apiService.updateAppointmentStatus(selectedApt.id, 'COMPLETED');
 
       toast({
-        title: 'Thành công',
-        description: 'Đã hoàn thành khám và lưu hồ sơ bệnh án thành công.',
+        title: 'Success',
+        description: 'Consultation completed and medical record saved successfully.',
       });
 
       setIsRecordDialogOpen(false);
@@ -204,8 +204,8 @@ export default function DoctorDashboard() {
     } catch (error) {
       console.error('Failed to complete appointment:', error);
       toast({
-        title: 'Lỗi',
-        description: 'Không thể lưu bệnh án và hoàn thành lịch khám',
+        title: 'Error',
+        description: 'Could not save medical record and complete the appointment',
         variant: 'destructive',
       });
     } finally {
@@ -475,7 +475,7 @@ export default function DoctorDashboard() {
                                   if (apt.paymentStatus === 'PAID') {
                                     handleMarkCompleteClick(apt);
                                   } else {
-                                    toast({ title: 'Cảnh báo', description: 'Bệnh nhân chưa thanh toán, không thể hoàn thành khám.', variant: 'destructive' });
+                                    toast({ title: 'Warning', description: 'Patient has not paid yet, cannot complete consultation.', variant: 'destructive' });
                                   }
                                 }}
                               >
@@ -585,21 +585,21 @@ export default function DoctorDashboard() {
         <DialogContent className="sm:max-w-[500px] rounded-3xl p-6 bg-white/95 backdrop-blur-xl border-0 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black text-slate-900">
-              Nhập Hồ Sơ Bệnh Án
+              Input Medical Record
             </DialogTitle>
             <DialogDescription className="text-slate-500 font-medium">
-              Hoàn thành lịch khám cho bệnh nhân bằng cách ghi lại chẩn đoán và hướng điều trị.
+              Complete the consultation by recording the diagnosis and treatment plan.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmitRecord} className="space-y-5 py-4">
             <div className="space-y-2">
               <Label htmlFor="diagnosis" className="text-sm font-bold text-slate-700 ml-1">
-                Chẩn đoán bệnh <span className="text-rose-500">*</span>
+                Diagnosis <span className="text-rose-500">*</span>
               </Label>
               <Textarea
                 id="diagnosis"
-                placeholder="Ví dụ: Cao huyết áp mức độ 1, cần theo dõi..."
+                placeholder="e.g. Stage 1 Hypertension, needs monitoring..."
                 value={recordForm.diagnosis}
                 onChange={(e) => setRecordForm({ ...recordForm, diagnosis: e.target.value })}
                 className="bg-slate-50/50 border-slate-100 focus:border-primary rounded-xl min-h-[80px]"
@@ -609,11 +609,11 @@ export default function DoctorDashboard() {
 
             <div className="space-y-2">
               <Label htmlFor="treatment" className="text-sm font-bold text-slate-700 ml-1">
-                Hướng điều trị / Đơn thuốc
+                Treatment Plan / Prescription
               </Label>
               <Textarea
                 id="treatment"
-                placeholder="Ví dụ: Amlodipine 5mg uống sáng 1 viên sau ăn..."
+                placeholder="e.g. Amlodipine 5mg, take 1 pill in the morning after meal..."
                 value={recordForm.treatment}
                 onChange={(e) => setRecordForm({ ...recordForm, treatment: e.target.value })}
                 className="bg-slate-50/50 border-slate-100 focus:border-primary rounded-xl min-h-[80px]"
@@ -622,11 +622,11 @@ export default function DoctorDashboard() {
 
             <div className="space-y-2">
               <Label htmlFor="notes" className="text-sm font-bold text-slate-700 ml-1">
-                Ghi chú thêm
+                Additional Notes
               </Label>
               <Textarea
                 id="notes"
-                placeholder="Lời dặn bác sĩ cho bệnh nhân..."
+                placeholder="Doctor's advice for the patient..."
                 value={recordForm.notes}
                 onChange={(e) => setRecordForm({ ...recordForm, notes: e.target.value })}
                 className="bg-slate-50/50 border-slate-100 focus:border-primary rounded-xl min-h-[60px]"
@@ -640,7 +640,7 @@ export default function DoctorDashboard() {
                 onClick={() => setIsRecordDialogOpen(false)}
                 className="rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50"
               >
-                Hủy bỏ
+                Cancel
               </Button>
               <Button
                 type="submit"
@@ -648,12 +648,12 @@ export default function DoctorDashboard() {
                 className="rounded-xl font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
               >
                 {isSubmittingRecord ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                    Đang lưu...
-                  </span>
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                    Saving...
+                  </div>
                 ) : (
-                  'Xác nhận hoàn thành'
+                  'Confirm Completion'
                 )}
               </Button>
             </DialogFooter>
