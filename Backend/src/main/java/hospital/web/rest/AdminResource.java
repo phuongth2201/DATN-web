@@ -10,6 +10,7 @@ import hospital.repository.HospitalRepository;
 import hospital.repository.PaymentRepository;
 import hospital.repository.SpecialtyRepository;
 import hospital.repository.UserRepository;
+import hospital.service.NotificationService;
 import hospital.service.dto.PageResponseDTO;
 import hospital.service.dto.PaginationDTO;
 import jakarta.validation.Valid;
@@ -43,6 +44,7 @@ public class AdminResource {
     private final HospitalRepository hospitalRepository;
     private final AppointmentRepository appointmentRepository;
     private final PaymentRepository paymentRepository;
+    private final NotificationService notificationService;
 
     public AdminResource(
         UserRepository userRepository,
@@ -50,7 +52,8 @@ public class AdminResource {
         SpecialtyRepository specialtyRepository,
         HospitalRepository hospitalRepository,
         AppointmentRepository appointmentRepository,
-        PaymentRepository paymentRepository
+        PaymentRepository paymentRepository,
+        NotificationService notificationService
     ) {
         this.userRepository = userRepository;
         this.doctorRepository = doctorRepository;
@@ -58,6 +61,7 @@ public class AdminResource {
         this.hospitalRepository = hospitalRepository;
         this.appointmentRepository = appointmentRepository;
         this.paymentRepository = paymentRepository;
+        this.notificationService = notificationService;
     }
 
     @GetMapping("/dashboard")
@@ -201,6 +205,24 @@ public class AdminResource {
         Appointment appointment = appointmentRepository.findById(id).orElseThrow(() -> new IllegalStateException("Appointment not found"));
         appointment.setStatus(hospital.domain.enumeration.AppointmentStatus.valueOf(request.status()));
         appointmentRepository.save(appointment);
+
+        if (appointment.getUser() != null) {
+            String statusMsg = "";
+            if ("CONFIRMED".equals(request.status())) statusMsg = "đã được xác nhận";
+            else if ("CANCELLED".equals(request.status())) statusMsg = "đã bị hủy";
+            else if ("COMPLETED".equals(request.status())) statusMsg = "đã hoàn thành";
+            
+            if (!statusMsg.isEmpty()) {
+                notificationService.createNotification(
+                    appointment.getUser().getId(),
+                    "Cập nhật lịch khám",
+                    "Lịch khám của bạn lúc " + appointment.getAppointmentTime() + " ngày " + appointment.getAppointmentDate() + " " + statusMsg + ".",
+                    "APPOINTMENT_" + request.status(),
+                    appointment.getId()
+                );
+            }
+        }
+
         return ResponseEntity.ok(
             Map.of("id", id, "status", appointment.getStatus().name(), "message", "Trạng thái lịch khám đã được cập nhật")
         );

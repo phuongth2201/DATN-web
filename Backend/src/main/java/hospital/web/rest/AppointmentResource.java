@@ -13,6 +13,7 @@ import hospital.security.SecurityUtils;
 import hospital.service.dto.AppointmentDTO;
 import hospital.service.dto.PageResponseDTO;
 import hospital.service.dto.PaginationDTO;
+import hospital.service.NotificationService;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -34,17 +35,20 @@ public class AppointmentResource {
     private final DoctorRepository doctorRepository;
     private final HospitalRepository hospitalRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public AppointmentResource(
         AppointmentRepository appointmentRepository,
         DoctorRepository doctorRepository,
         HospitalRepository hospitalRepository,
-        UserRepository userRepository
+        UserRepository userRepository,
+        NotificationService notificationService
     ) {
         this.appointmentRepository = appointmentRepository;
         this.doctorRepository = doctorRepository;
         this.hospitalRepository = hospitalRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @PostMapping("/appointments")
@@ -70,6 +74,18 @@ public class AppointmentResource {
         appointment.setPrice(doctor.getPrice());
         appointment.setPaymentStatus("UNPAID");
         appointmentRepository.save(appointment);
+
+        // Send notification to doctor
+        userRepository.findOneByEmailIgnoreCase(doctor.getEmail()).ifPresent(doctorUser -> {
+            notificationService.createNotification(
+                doctorUser.getId(),
+                "Lịch hẹn mới",
+                "Bạn có lịch khám mới từ bệnh nhân " + user.getLogin() + " vào lúc " + requestedTime + " ngày " + request.appointmentDate(),
+                "APPOINTMENT_NEW",
+                appointment.getId()
+            );
+        });
+
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(appointment));
     }
 
@@ -135,6 +151,18 @@ public class AppointmentResource {
         );
         
         appointmentRepository.save(appointment);
+        
+        // Notification to patient (from admin/doctor)
+        if (appointment.getUser() != null) {
+            notificationService.createNotification(
+                appointment.getUser().getId(),
+                "Lịch hẹn thay đổi",
+                "Lịch khám của bạn đã được dời sang " + requestedTime + " ngày " + request.appointmentDate() + ". Vui lòng chờ duyệt lại.",
+                "APPOINTMENT_UPDATED",
+                appointment.getId()
+            );
+        }
+
         AppointmentDTO dto = toDto(appointment);
         dto.setMessage("Lịch khám đã được cập nhật");
         return ResponseEntity.ok(dto);
@@ -154,6 +182,31 @@ public class AppointmentResource {
             );
         }
         appointmentRepository.save(appointment);
+
+        // Notification to the other party
+        User currentUser = currentUser();
+        if (SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_PATIENT") && appointment.getDoctor() != null) {
+            // Patient cancelled, notify doctor
+            userRepository.findOneByEmailIgnoreCase(appointment.getDoctor().getEmail()).ifPresent(doctorUser -> {
+                notificationService.createNotification(
+                    doctorUser.getId(),
+                    "Lịch hẹn bị hủy",
+                    "Bệnh nhân " + currentUser.getLogin() + " đã hủy lịch khám lúc " + appointment.getAppointmentTime() + " ngày " + appointment.getAppointmentDate(),
+                    "APPOINTMENT_CANCELED",
+                    appointment.getId()
+                );
+            });
+        } else if (appointment.getUser() != null) {
+            // Admin/Doctor cancelled, notify patient
+            notificationService.createNotification(
+                appointment.getUser().getId(),
+                "Lịch hẹn bị hủy",
+                "Rất tiếc, lịch hẹn khám lúc " + appointment.getAppointmentTime() + " ngày " + appointment.getAppointmentDate() + " của bạn đã bị hủy.",
+                "APPOINTMENT_CANCELED",
+                appointment.getId()
+            );
+        }
+
         AppointmentDTO dto = toDto(appointment);
         dto.setMessage("Lịch khám đã được hủy");
         return ResponseEntity.ok(dto);

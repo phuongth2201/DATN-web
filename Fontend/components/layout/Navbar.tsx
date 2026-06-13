@@ -15,19 +15,28 @@ export function Navbar() {
   const { fetchAppointments } = useAppointmentStore();
   const { 
     notifications: storeNotifications, 
+    unreadCount,
     markAsRead, 
     markAllAsRead, 
-    getUnreadCount 
+    fetchNotifications,
+    fetchUnreadCount
   } = useNotificationStore();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotifyOpen, setIsNotifyOpen] = useState(false);
 
-  const unreadCount = getUnreadCount();
-
   useEffect(() => {
-    // Only check auth status or other generic initialization here
-  }, [isAuthenticated]);
+    if (isAuthenticated) {
+      fetchUnreadCount();
+      fetchNotifications(1);
+      
+      // Optional: Polling every 30s
+      const interval = setInterval(() => {
+        fetchUnreadCount();
+      }, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, fetchUnreadCount, fetchNotifications]);
 
   const handleLogout = async () => {
     await logout();
@@ -38,8 +47,8 @@ export function Navbar() {
 
   const handleNotificationClick = (n: any) => {
     markAsRead(n.id);
-    if (n.appointmentId) {
-      router.push(`/appointments/${n.appointmentId}`);
+    if (n.relatedId) {
+      router.push(`/appointments/${n.relatedId}`);
       setIsNotifyOpen(false);
     }
   };
@@ -125,7 +134,7 @@ export function Navbar() {
                                 <p className="text-sm font-bold text-slate-900 leading-tight mb-1">{n.title}</p>
                                 <p className="text-xs text-slate-500 leading-relaxed">{n.message}</p>
                                 <p className="text-[10px] font-medium text-slate-400 mt-2">
-                                  {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(n.timestamp).toLocaleDateString()}
+                                  {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(n.createdAt).toLocaleDateString()}
                                 </p>
                               </div>
                             </div>

@@ -15,7 +15,8 @@
     <include file="config/liquibase/changelog/20260421000000_added_entities.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260424000000_healthcare_api_extensions.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260503000000_add_schedule_time_slot.xml" relativeToChangelogFile="false"/>
-    <!-- jhipster-needle-liquibase-add-changelog - JHipster will add liquibase changelogs here -->
+    <include file="config/liquibase/changelog/20260505000000_add_doctor_active_and_admin_crud.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260613000000_add_notification.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-constraints-changelog - JHipster will add liquibase constraints changelogs here -->
     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->
 </databaseChangeLog>
