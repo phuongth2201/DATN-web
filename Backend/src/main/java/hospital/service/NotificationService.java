@@ -6,6 +6,7 @@ import hospital.repository.NotificationRepository;
 import hospital.repository.UserRepository;
 import hospital.service.dto.NotificationDTO;
 import hospital.service.mapper.NotificationMapper;
+import hospital.security.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -52,13 +53,17 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public Page<NotificationDTO> getCurrentUserNotifications(Pageable pageable) {
         log.debug("Request to get current user Notifications");
-        return notificationRepository.findByUserIsCurrentUser(pageable)
-            .map(notificationMapper::toDto);
+        return SecurityUtils.getCurrentUserLogin()
+            .map(login -> notificationRepository.findByUserIsCurrentUser(login, pageable)
+                .map(notificationMapper::toDto))
+            .orElse(Page.empty(pageable));
     }
 
     @Transactional(readOnly = true)
     public long countUnread() {
-        return notificationRepository.countUnreadByUserIsCurrentUser();
+        return SecurityUtils.getCurrentUserLogin()
+            .map(notificationRepository::countUnreadByUserIsCurrentUser)
+            .orElse(0L);
     }
 
     public Optional<NotificationDTO> markAsRead(Long id) {
@@ -71,6 +76,7 @@ public class NotificationService {
 
     public void markAllAsRead() {
         log.debug("Request to mark all current user Notifications as read");
-        notificationRepository.markAllAsReadForCurrentUser();
+        SecurityUtils.getCurrentUserLogin()
+            .ifPresent(notificationRepository::markAllAsReadForCurrentUser);
     }
 }
