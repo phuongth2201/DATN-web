@@ -10,6 +10,7 @@ import Cookie from 'js-cookie';
 import { Button } from '@/components/ui/button';
 import { Menu, X, LogOut, Bell, Calendar, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 
 export function Navbar() {
   const router = useRouter();
@@ -40,6 +41,14 @@ export function Navbar() {
       eventSource.addEventListener('NOTIFICATION', (event) => {
         // When a new notification arrives via SSE, trigger our smart update logic
         fetchUnreadCount();
+        try {
+          const newNotification = JSON.parse(event.data);
+          toast.info(newNotification.title, {
+            description: newNotification.message,
+          });
+        } catch (e) {
+          console.error('Failed to parse SSE notification data', e);
+        }
       });
 
       eventSource.onerror = (error) => {

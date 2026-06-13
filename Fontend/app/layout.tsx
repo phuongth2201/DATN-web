@@ -31,6 +31,7 @@ export const metadata: Metadata = {
 
 import { AuthInitializer } from '@/components/auth/AuthInitializer'
 import { Toaster } from '@/components/ui/toaster'
+import { Toaster as SonnerToaster } from '@/components/ui/sonner'
 
 export default function RootLayout({
   children,
@@ -44,6 +45,7 @@ export default function RootLayout({
           {children}
         </AuthInitializer>
         <Toaster />
+        <SonnerToaster position="bottom-right" duration={5000} richColors />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
