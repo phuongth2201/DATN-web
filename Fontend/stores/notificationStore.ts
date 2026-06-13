@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import apiService from '@/services/api';
+import { apiService } from '@/services/api';
 
 export interface Notification {
   id: number;

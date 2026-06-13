@@ -656,6 +656,23 @@ class ApiService {
     const res = await this.client.get(`/api/payments/${paymentId}/status`);
     return res.data;
   }
+
+  // Notifications endpoints
+  async getNotifications(page = 1, limit = 20) {
+    return (await this.client.get('/api/notifications', { params: { page, limit } })).data;
+  }
+
+  async getUnreadNotificationCount() {
+    return (await this.client.get('/api/notifications/unread-count')).data;
+  }
+
+  async markNotificationAsRead(id: number) {
+    return (await this.client.put(`/api/notifications/${id}/read`)).data;
+  }
+
+  async markAllNotificationsAsRead() {
+    await this.client.put('/api/notifications/read-all');
+  }
 }
 
 export const apiService = new ApiService();
