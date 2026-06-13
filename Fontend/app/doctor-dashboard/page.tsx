@@ -372,7 +372,7 @@ export default function DoctorDashboard() {
                     {pendingAppointments.map(apt => (
                       <Card 
                         key={apt.id} 
-                        className="border border-amber-100 shadow-sm hover:shadow-md transition-all overflow-hidden relative cursor-pointer"
+                        className="border border-amber-100 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-amber-300 transition-all duration-300 overflow-hidden relative cursor-pointer group"
                         onClick={() => router.push(`/doctor-dashboard/appointments/${apt.id}`)}
                       >
                         <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-400" />
@@ -444,7 +444,7 @@ export default function DoctorDashboard() {
                     {scheduledAppointments.map(apt => (
                       <Card 
                         key={apt.id} 
-                        className="border-0 shadow-sm hover:shadow-md transition-all overflow-hidden relative cursor-pointer"
+                        className="border border-transparent shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 transition-all duration-300 overflow-hidden relative cursor-pointer group"
                         onClick={() => router.push(`/doctor-dashboard/appointments/${apt.id}`)}
                       >
                         <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500" />
@@ -520,7 +520,7 @@ export default function DoctorDashboard() {
                     {[...completedAppointments, ...cancelledAppointments].map(apt => (
                       <Card 
                         key={apt.id} 
-                        className={`border-0 shadow-sm overflow-hidden relative cursor-pointer hover:shadow-md transition-shadow ${apt.status === 'CANCELLED' ? 'opacity-70' : ''}`}
+                        className={`border border-transparent shadow-sm overflow-hidden relative cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-slate-200 transition-all duration-300 ${apt.status === 'CANCELLED' ? 'opacity-70' : ''}`}
                         onClick={() => router.push(`/doctor-dashboard/appointments/${apt.id}`)}
                       >
                         <div className={`absolute top-0 left-0 w-1.5 h-full ${apt.status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
