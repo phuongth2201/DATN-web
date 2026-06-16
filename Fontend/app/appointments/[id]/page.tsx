@@ -32,7 +32,7 @@ export default function AppointmentDetailPage() {
     currentAppointment,
     isLoading,
     getAppointmentById,
-    cancelAppointment,
+    
     rescheduleAppointment,
   } = useAppointmentStore();
   const { toast } = useToast();
@@ -54,11 +54,13 @@ export default function AppointmentDetailPage() {
 
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [review, setReview] = useState({ rating: 5, comment: '' });
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const [medicalRecord, setMedicalRecord] = useState<any>(null);
 
   useEffect(() => {
+
     if (!isAuthenticated) {
       router.push('/login');
       return;
@@ -77,31 +79,43 @@ export default function AppointmentDetailPage() {
   }, [currentAppointment]);
 
   const handleCancel = async () => {
-    if (!cancelReason.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please provide a cancellation reason',
-        variant: 'destructive',
-      });
-      return;
-    }
+  if (!cancelReason.trim()) {
+    toast({
+      title: 'Error',
+      description: 'Please provide a cancellation reason',
+      variant: 'destructive',
+    });
+    return;
+  }
 
-    try {
-      await cancelAppointment(appointmentId, cancelReason);
-      toast({
-        title: 'Success',
-        description: 'Appointment cancelled successfully',
-      });
-      setShowCancelForm(false);
-      getAppointmentById(appointmentId);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to cancel appointment',
-        variant: 'destructive',
-      });
-    }
-  };
+  try {
+    console.log('Cancelling appointment:', appointmentId, cancelReason);
+
+    await apiService.cancelAppointment(appointmentId, cancelReason);
+
+    toast({
+      title: 'Success',
+      description: 'Appointment cancelled successfully',
+    });
+
+    setShowCancelForm(false);
+    setCancelReason('');
+    getAppointmentById(appointmentId);
+  } catch (error: any) {
+    console.error('Cancel appointment failed:', error);
+    console.error('Backend response:', error.response?.data);
+
+    toast({
+      title: 'Error',
+      description:
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        error.response?.data?.title ||
+        'Failed to cancel appointment',
+      variant: 'destructive',
+    });
+  }
+};
 
   const handleReschedule = async () => {
     if (!newDate || !newSlot) {
@@ -140,7 +154,71 @@ export default function AppointmentDetailPage() {
       });
     }
   };
+  const handleSubmitReview = async () => {
+  if (!review.rating) {
+    toast({
+      title: 'Error',
+      description: 'Please select a rating',
+      variant: 'destructive',
+    });
+    return;
+  }
 
+  if (!review.comment.trim()) {
+    toast({
+      title: 'Error',
+      description: 'Please enter your review',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  const appointment: any = currentAppointment;
+
+  const doctorId =
+    appointment.doctorId ||
+    appointment.doctor?.id ||
+    appointment.doctor?.doctorId;
+
+  if (!doctorId) {
+    toast({
+      title: 'Error',
+      description: 'Doctor information not found',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  try {
+    setIsSubmittingReview(true);
+
+    await apiService.createReview({
+      appointmentId: appointmentId,
+      doctorId: doctorId,
+      rating: review.rating,
+      comment: review.comment,
+    });
+
+    toast({
+      title: 'Success',
+      description: 'Review submitted successfully',
+    });
+
+    setShowReviewForm(false);
+    setReview({ rating: 5, comment: '' });
+    getAppointmentById(appointmentId);
+  } catch (error) {
+    console.error('Submit review failed:', error);
+
+    toast({
+      title: 'Error',
+      description: 'Failed to submit review',
+      variant: 'destructive',
+    });
+  } finally {
+    setIsSubmittingReview(false);
+  }
+};
   if (!isAuthenticated) {
     return null;
   }
@@ -425,15 +503,24 @@ export default function AppointmentDetailPage() {
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium">New Time (08:00 AM - 05:00 PM)</label>
-                  <input
-                    type="time"
-                    min="08:00"
-                    max="17:00"
-                    value={newSlot}
-                    onChange={(e) => setNewSlot(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md"
-                    required
-                  />
+                  <select
+  value={newSlot}
+  onChange={(e) => setNewSlot(e.target.value)}
+  className="w-full px-3 py-2 border rounded-md"
+  required
+>
+  <option value="">Select time</option>
+  <option value="08:00">08:00 AM</option>
+  <option value="08:30">08:30 AM</option>
+  <option value="09:00">09:00 AM</option>
+  <option value="09:30">09:30 AM</option>
+  <option value="10:00">10:00 AM</option>
+  <option value="14:00">02:00 PM</option>
+  <option value="14:30">02:30 PM</option>
+  <option value="15:00">03:00 PM</option>
+  <option value="15:30">03:30 PM</option>
+  <option value="16:00">04:00 PM</option>
+</select>
                 </div>
 
                 <div className="flex gap-4">
@@ -467,6 +554,7 @@ export default function AppointmentDetailPage() {
                   <div className="flex gap-2">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
+                        type="button"
                         key={star}
                         onClick={() => setReview({ ...review, rating: star })}
                         className="focus:outline-none"
@@ -500,9 +588,14 @@ export default function AppointmentDetailPage() {
                 </div>
 
                 <div className="flex gap-4">
-                  <Button className="flex-1 bg-blue-600 hover:bg-blue-700">
-                    Submit Review
-                  </Button>
+                  <Button
+  type="button"
+  className="flex-1 bg-blue-600 hover:bg-blue-700"
+  onClick={handleSubmitReview}
+  disabled={isSubmittingReview}
+>
+  {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+</Button>
                   <Button
                     variant="outline"
                     onClick={() => setShowReviewForm(false)}

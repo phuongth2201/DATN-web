@@ -13,7 +13,6 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -48,65 +47,86 @@ public class PaymentResource {
     @PostMapping("/payments/process")
     public ResponseEntity<Map<String, Object>> process(@RequestBody ProcessPaymentRequest request) {
         User user = currentUser();
+
         Appointment appointment = appointmentRepository
             .findById(request.appointmentId())
             .orElseThrow(() -> new IllegalStateException("Appointment not found"));
+
         if (appointment.getUser() == null || !appointment.getUser().getLogin().equalsIgnoreCase(user.getLogin())) {
             throw new IllegalStateException("Unauthorized");
         }
+
         if (request.amount() == null || request.amount() <= 0) {
             throw new IllegalArgumentException("Amount must be greater than 0");
         }
-        Payment payment = new Payment();
-        payment.setUser(user);
-        payment.setAppointment(appointment);
-        payment.setAmount(request.amount());
-        payment.setPaymentMethod(request.paymentMethod());
-        payment.setStatus("PENDING");
-        payment.setTransactionId("TXN" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
-        payment.setCreatedAt(Instant.now());
-        paymentRepository.save(payment);
 
         try {
+            Long orderCode = System.currentTimeMillis();
+
+            Payment payment = new Payment();
+            payment.setUser(user);
+            payment.setAppointment(appointment);
+            payment.setAmount(request.amount());
+            payment.setPaymentMethod(request.paymentMethod());
+            payment.setStatus("PENDING");
+            payment.setTransactionId(String.valueOf(orderCode));
+            payment.setCreatedAt(Instant.now());
+            paymentRepository.save(payment);
+
             CreatePaymentLinkRequest paymentData = CreatePaymentLinkRequest.builder()
-                .orderCode(appointment.getId())
+                .orderCode(orderCode)
                 .amount(request.amount().longValue())
                 .description("Kham benh " + appointment.getId())
-                .returnUrl("http://localhost:3000/appointments?payment=success")
-                .cancelUrl("http://localhost:3000/appointments?payment=cancel")
+                .returnUrl("http://localhost:3000/appointments/" + appointment.getId() + "?payment=success")
+                .cancelUrl("http://localhost:3000/appointments/" + appointment.getId() + "?payment=cancel")
                 .build();
-                
+
             CreatePaymentLinkResponse res = payOS.paymentRequests().create(paymentData);
-            
+
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("paymentId", payment.getId());
+            result.put("appointmentId", appointment.getId());
+            result.put("orderCode", orderCode);
             result.put("checkoutUrl", res.getCheckoutUrl());
             result.put("qrCode", res.getQrCode());
+            result.put("status", "PENDING");
+            result.put("paymentStatus", "UNPAID");
+
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+
+            Map<String, Object> error = new LinkedHashMap<>();
+            error.put("error", e.getClass().getName());
+            error.put("message", e.getMessage() == null ? e.toString() : e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
+   
     }
 
     @PostMapping("/payments/payos-webhook")
     public ResponseEntity<Map<String, String>> payosWebhook(@RequestBody com.fasterxml.jackson.databind.JsonNode request) {
         try {
-            // Lấy data từ webhook của PayOS
             com.fasterxml.jackson.databind.JsonNode data = request.get("data");
+
             if (data != null && data.has("orderCode")) {
-                // orderCode chính là appointmentId mà chúng ta gửi lên PayOS lúc tạo link
-                long appointmentId = data.get("orderCode").asLong();
-                Appointment appointment = appointmentRepository.findById(appointmentId).orElse(null);
-                
-                if (appointment != null) {
-                    // Tự động gạch nợ (đổi trạng thái sang PAID)
+                String orderCode = data.get("orderCode").asText();
+
+                Payment payment = paymentRepository.findByTransactionId(orderCode).orElse(null);
+
+                if (payment != null && payment.getAppointment() != null) {
+                    payment.setStatus("SUCCESS");
+                    paymentRepository.save(payment);
+
+                    Appointment appointment = payment.getAppointment();
                     appointment.setPaymentStatus("PAID");
                     appointmentRepository.save(appointment);
-                    System.out.println("✅ Tự động gạch nợ thành công cho Lịch khám: " + appointmentId);
+
+                    System.out.println("✅ Payment completed successfully " + appointment.getId());
                 }
             }
-            // Luôn trả về 200 OK để PayOS biết là mình đã nhận được, tránh bị gọi lại nhiều lần
+
             return ResponseEntity.ok(Map.of("success", "true"));
         } catch (Exception e) {
             e.printStackTrace();

@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import Cookie from 'js-cookie';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8081';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8082';
 
 class ApiService {
   private client: AxiosInstance;
@@ -479,12 +479,14 @@ class ApiService {
   }
 
   async cancelAppointment(id: string, reason: string) {
-    try {
-      return (await this.client.put(`/api/appointments/${id}/cancel`, { reason })).data;
-    } catch {
-      return (await this.client.put(`/api/appointments/${id}`, { status: 'CANCELLED', cancelReason: reason })).data;
-    }
-  }
+  const res = await this.client.delete(`/api/appointments/${id}`, {
+    data: {
+      reason,
+    },
+  });
+
+  return res.data;
+}
 
   async rescheduleAppointment(id: string, newDate: string, newSlot: string) {
     try {
@@ -673,6 +675,26 @@ class ApiService {
   async markAllNotificationsAsRead() {
     await this.client.put('/api/notifications/read-all');
   }
+  async createReview(data: {
+  appointmentId: string | number;
+  doctorId: string | number;
+  rating: number;
+  comment: string;
+}) {
+  const res = await this.client.post('/api/reviews', {
+    appointmentId: Number(data.appointmentId),
+    doctorId: Number(data.doctorId),
+    rating: Number(data.rating),
+    comment: data.comment,
+  });
+
+  return res.data;
+}
+
+async getDoctorReviews(doctorId: string | number) {
+  const res = await this.client.get(`/api/reviews/doctor/${doctorId}`);
+  return res.data;
+}
 }
 
 export const apiService = new ApiService();
