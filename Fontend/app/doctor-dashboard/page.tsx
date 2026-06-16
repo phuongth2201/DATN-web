@@ -379,7 +379,7 @@ export default function DoctorDashboard() {
                         <CardContent className="p-6">
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div>
-                              <h3 className="text-lg font-bold text-slate-800 mb-1">Patient #{String(apt.id).includes('-') ? String(apt.id).split('-')[1] : apt.id}</h3>
+                              <h3 className="text-lg font-bold text-slate-800 mb-1">{(apt as any).patientName || `Patient #${apt.id}`}</h3>
                               <div className="flex flex-wrap gap-4 text-sm font-medium text-slate-600 mb-2">
                                 <span className="flex items-center gap-1"><Calendar size={14} className="text-slate-400" /> {new Date(apt.appointmentDate).toLocaleDateString()}</span>
                                 <span className="flex items-center gap-1"><Clock size={14} className="text-slate-400" /> {formatAMPM(apt.appointmentTime)}</span>
@@ -452,7 +452,7 @@ export default function DoctorDashboard() {
                           <div className="flex flex-col md:flex-row">
                             <div className="p-6 flex-1">
                               <div className="flex justify-between items-start mb-3">
-                                <h3 className="text-xl font-bold text-slate-800">Patient #{String(apt.id).includes('-') ? String(apt.id).split('-')[1] : apt.id}</h3>
+                                <h3 className="text-xl font-bold text-slate-800">{(apt as any).patientName || `Patient #${apt.id}`}</h3>
                                 <div className="flex flex-wrap gap-2 justify-end">
                                   <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">{apt.consultationType || 'Consultation'}</Badge>
                                   {apt.paymentStatus === 'PAID' ? (
@@ -527,7 +527,7 @@ export default function DoctorDashboard() {
                         <CardContent className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-bold text-slate-800">Patient #{String(apt.id).includes('-') ? String(apt.id).split('-')[1] : apt.id}</h3>
+                              <h3 className="font-bold text-slate-800">{(apt as any).patientName || `Patient #${apt.id}`}</h3>
                               <Badge className={apt.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}>
                                 {apt.status}
                               </Badge>
@@ -575,7 +575,7 @@ export default function DoctorDashboard() {
                             </div>
                             <div className="pb-3">
                               <p className="text-sm font-bold text-slate-800">{formatAMPM(apt.appointmentTime)}</p>
-                              <p className="text-xs text-slate-500">Patient #{String(apt.id).includes('-') ? String(apt.id).split('-')[1] : apt.id} • {apt.consultationType || 'Visit'}</p>
+                              <p className="text-xs text-slate-500">{(apt as any).patientName || `Patient #${apt.id}`} • {apt.consultationType || 'Visit'}</p>
                             </div>
                           </div>
                         ))}

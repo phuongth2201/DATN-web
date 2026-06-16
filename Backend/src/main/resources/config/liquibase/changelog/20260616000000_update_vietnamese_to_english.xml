@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260616000000-1" author="system">
+        <!-- Update hospital name and address from Vietnamese to English -->
+        <update tableName="hospital">
+            <column name="name" value="International General Hospital"/>
+            <column name="address" value="Hanoi, Vietnam"/>
+            <where>id = 1051</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="20260616000000-2" author="system">
+        <!-- Update doctor fullName and bio from Vietnamese to English -->
+        <update tableName="doctor">
+            <column name="full_name" value="Dr. Nguyen Van A"/>
+            <column name="bio" value="Leading cardiologist with 10 years of experience."/>
+            <where>id = 1101</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="20260616000000-3" author="system">
+        <update tableName="doctor">
+            <column name="full_name" value="Dr. Tran Thi B"/>
+            <column name="bio" value="Neurology specialist, trained in France."/>
+            <where>id = 1102</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="20260616000000-4" author="system">
+        <update tableName="doctor">
+            <column name="full_name" value="Dr. Le Hoang C"/>
+            <column name="bio" value="Dermatology specialist, treating acne and skin aesthetics."/>
+            <where>id = 1103</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="20260616000000-5" author="system">
+        <update tableName="doctor">
+            <column name="full_name" value="Dr. Ho Thi Phuong"/>
+            <where>id = 1651</where>
+        </update>
+    </changeSet>
+
+</databaseChangeLog>

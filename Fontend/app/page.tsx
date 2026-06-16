@@ -6,9 +6,21 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Shield, Users, Star, MapPin, Calendar, Activity } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { apiService } from '@/services/api';
+
+function formatCount(n: number): string {
+  if (n >= 1000) return `${Math.floor(n / 1000)}K+`;
+  return `${n}+`;
+}
 
 export default function Home() {
   const router = useRouter();
+  const [stats, setStats] = useState({ totalDoctors: 0, totalPatients: 0, completedAppointments: 0, totalAppointments: 0 });
+
+  useEffect(() => {
+    apiService.getPublicStats().then(setStats).catch(() => {});
+  }, []);
 
   return (
     <>
@@ -61,9 +73,9 @@ export default function Home() {
 
                 <div className="grid grid-cols-3 gap-8 pt-10 border-t border-white/10">
                   {[
-                    { label: 'Specialists', val: '500+' },
-                    { label: 'Happy Patients', val: '25K+' },
-                    { label: 'Success Rate', val: '99%' }
+                    { label: 'Specialists', val: formatCount(stats.totalDoctors) },
+                    { label: 'Happy Patients', val: formatCount(stats.totalPatients) },
+                    { label: 'Completed', val: formatCount(stats.completedAppointments) }
                   ].map((stat, i) => (
                     <div key={i}>
                       <p className="text-3xl font-black text-white">{stat.val}</p>

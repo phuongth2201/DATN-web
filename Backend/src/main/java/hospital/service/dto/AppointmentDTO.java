@@ -13,6 +13,7 @@ public class AppointmentDTO implements Serializable {
 
     private Long id;
     private Long patientId;
+    private String patientName;
     private Long doctorId;
     private String doctorName;
     private String doctorPhone;
@@ -46,6 +47,14 @@ public class AppointmentDTO implements Serializable {
 
     public void setPatientId(Long patientId) {
         this.patientId = patientId;
+    }
+
+    public String getPatientName() {
+        return patientName;
+    }
+
+    public void setPatientName(String patientName) {
+        this.patientName = patientName;
     }
 
     public Long getDoctorId() {

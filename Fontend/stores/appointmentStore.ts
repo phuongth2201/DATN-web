@@ -4,6 +4,7 @@ import { apiService } from '@/services/api';
 export interface Appointment {
   id: string;
   patientId: string;
+  patientName?: string;
   doctorId: string;
   appointmentDate: string;
   appointmentTime: string;
@@ -43,7 +44,7 @@ export const useAppointmentStore = create<AppointmentStore>((set) => ({
   fetchAppointments: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await apiService.getUserAppointments();
+      const response = await apiService.getUserAppointments({ sortBy: 'date', sortOrder: 'desc' });
       let apps = [];
       if (Array.isArray(response)) apps = response;
       else if (Array.isArray(response?.data)) apps = response.data;
@@ -83,7 +84,7 @@ export const useAppointmentStore = create<AppointmentStore>((set) => ({
       const response = await apiService.bookAppointment(data);
       set((state) => ({
         isLoading: false,
-        appointments: [...state.appointments, response?.data || response],
+        appointments: [response?.data || response, ...state.appointments],
       }));
     } catch (error: any) {
       set({

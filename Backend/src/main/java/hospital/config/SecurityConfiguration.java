@@ -112,6 +112,7 @@ public class SecurityConfiguration {
                     .requestMatchers(mvc.pattern(HttpMethod.GET, "/api/doctors/**")).permitAll()
                     .requestMatchers(mvc.pattern(HttpMethod.GET, "/api/reviews/**")).permitAll()
                     .requestMatchers(mvc.pattern(HttpMethod.GET, "/api/appointments/*/available-slots")).permitAll()
+                    .requestMatchers(mvc.pattern(HttpMethod.GET, "/api/public/**")).permitAll()
                     .requestMatchers(mvc.pattern(HttpMethod.POST, "/api/payments/payos-webhook")).permitAll()
                     .requestMatchers(mvc.pattern(HttpMethod.PUT, "/api/admin/appointments/{id}")).hasAnyAuthority(AuthoritiesConstants.ADMIN, AuthoritiesConstants.DOCTOR)
                     .requestMatchers(mvc.pattern("/api/admin/**")).hasAuthority(AuthoritiesConstants.ADMIN)

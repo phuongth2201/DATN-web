@@ -259,6 +259,10 @@ class ApiService {
     }
   }
 
+  async getPublicStats() {
+    return (await this.client.get('/api/public/stats')).data;
+  }
+
   async getSpecialties() {
     return (await this.client.get('/api/specialties')).data;
   }

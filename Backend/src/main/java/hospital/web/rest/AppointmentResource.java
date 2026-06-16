@@ -266,6 +266,12 @@ public class AppointmentResource {
         AppointmentDTO dto = new AppointmentDTO();
         dto.setId(appointment.getId());
         dto.setPatientId(appointment.getUser() != null ? appointment.getUser().getId() : null);
+        if (appointment.getUser() != null) {
+            String firstName = appointment.getUser().getFirstName();
+            String lastName = appointment.getUser().getLastName();
+            String full = ((firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "")).trim();
+            dto.setPatientName(full.isEmpty() ? appointment.getUser().getLogin() : full);
+        }
         dto.setDoctorId(appointment.getDoctor() != null ? appointment.getDoctor().getId() : null);
         dto.setDoctorName(appointment.getDoctor() != null ? appointment.getDoctor().getFullName() : null);
         dto.setDoctorPhone(appointment.getDoctor() != null ? appointment.getDoctor().getPhoneNumber() : null);
