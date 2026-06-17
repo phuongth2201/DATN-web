@@ -40,6 +40,17 @@ export default function DoctorsPage() {
     searchDoctors({ keyword, specialization, minRating });
   };
 
+  const formatDoctorName = (name: string) => {
+    if (!name) return 'Dr.';
+    return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
+  };
+
+  const nameInitial = (name: string) => {
+    if (!name) return 'D';
+    const stripped = name.replace(/^dr\.?\s+/i, '');
+    return stripped.charAt(0).toUpperCase();
+  };
+
   return (
     <>
       <Navbar />
@@ -152,11 +163,11 @@ export default function DoctorsPage() {
                     <div className="bg-gradient-to-r from-primary/10 to-secondary/10 p-6 text-center border-b">
                       <div className="w-20 h-20 bg-gradient-to-br from-primary to-secondary rounded-full mx-auto mb-4 flex items-center justify-center text-white shadow-md">
                         <span className="text-3xl font-bold">
-                          {doctor.fullName.charAt(0)}
+                          {nameInitial(doctor.fullName)}
                         </span>
                       </div>
                       <h3 className="text-xl font-bold text-foreground mb-1">
-                        {doctor.fullName}
+                        {formatDoctorName(doctor.fullName)}
                       </h3>
                       <p className="text-primary font-semibold">
                         {doctor.specialization}

@@ -233,7 +233,13 @@ export default function DoctorDetailPage() {
 
                       <Button
                         size="lg"
-                        onClick={() => setStep(2)}
+                        onClick={() => {
+                          if (!isAuthenticated) {
+                            router.push('/login');
+                            return;
+                          }
+                          setStep(2);
+                        }}
                         className="w-full h-14 text-lg font-bold shadow-lg shadow-blue-200 bg-blue-600 hover:bg-blue-700 transition-all active:scale-95"
                         disabled={!selectedDoctor.isAvailable}
                       >

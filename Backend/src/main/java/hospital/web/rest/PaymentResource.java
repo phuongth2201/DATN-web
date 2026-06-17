@@ -76,7 +76,7 @@ public class PaymentResource {
             CreatePaymentLinkRequest paymentData = CreatePaymentLinkRequest.builder()
                 .orderCode(orderCode)
                 .amount(request.amount().longValue())
-                .description("Kham benh " + appointment.getId())
+                .description("Appt " + appointment.getId())
                 .returnUrl("http://localhost:3000/appointments/" + appointment.getId() + "?payment=success")
                 .cancelUrl("http://localhost:3000/appointments/" + appointment.getId() + "?payment=cancel")
                 .build();

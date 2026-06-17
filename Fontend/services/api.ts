@@ -384,7 +384,8 @@ class ApiService {
       email: data.email,
       phoneNumber: data.phoneNumber || '',
       authorities: data.authorities || ['ROLE_USER'],
-      langKey: 'en'
+      langKey: 'en',
+      password: data.password || 'Hospital@123',
     };
     const res = await this.client.post('/api/admin/users', payload);
     return this.mapUserData(res.data);

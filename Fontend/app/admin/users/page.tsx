@@ -124,6 +124,7 @@ export default function AdminUsersPage() {
       email: '',
       phoneNumber: '',
       authorities: ['ROLE_USER'],
+      password: 'Hospital@123',
     });
     setIsEditMode(true);
     setIsCreateMode(true);
@@ -148,8 +149,8 @@ export default function AdminUsersPage() {
       if (isCreateMode) {
         await apiService.createUser(updateData);
         toast({
-          title: 'Success',
-          description: 'New user created successfully.',
+          title: 'User Created',
+          description: `Account created. Initial password: ${updateData.password || 'Hospital@123'}`,
         });
       } else {
         await apiService.updateUser(updateData);
@@ -412,6 +413,19 @@ export default function AdminUsersPage() {
                     <option value="ROLE_DOCTOR">Doctor (ROLE_DOCTOR)</option>
                     <option value="ROLE_ADMIN">Admin (ROLE_ADMIN)</option>
                   </select>
+                </div>
+              )}
+              {isCreateMode && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="password" className="text-right">Password</Label>
+                  <Input
+                    id="password"
+                    type="text"
+                    value={selectedUser.password || ''}
+                    onChange={(e) => setSelectedUser({ ...selectedUser, password: e.target.value })}
+                    className="col-span-3 font-mono"
+                    placeholder="Hospital@123"
+                  />
                 </div>
               )}
             </div>

@@ -31,7 +31,7 @@ interface AppointmentStore {
     newDate: string,
     newSlot: string
   ) => Promise<void>;
-  processPayment: (id: string, method: string) => Promise<any>;
+  processPayment: (id: string, method: string, amount?: number) => Promise<any>;
   clearError: () => void;
 }
 
@@ -144,10 +144,10 @@ export const useAppointmentStore = create<AppointmentStore>((set) => ({
     }
   },
 
-  processPayment: async (id, method) => {
+  processPayment: async (id, method, amount) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await apiService.initiatePayment(id, method);
+      const response = await apiService.initiatePayment(id, method, amount);
       
       // Update local state to PENDING
       set((state) => ({

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAppointmentStore } from '@/stores/appointmentStore';
 import { useAuthStore } from '@/stores/authStore';
 import { Navbar } from '@/components/layout/Navbar';
@@ -26,6 +26,7 @@ import { apiService } from '@/services/api';
 export default function AppointmentDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const appointmentId = params.id as string;
   const { isAuthenticated } = useAuthStore();
   const {
@@ -60,13 +61,24 @@ export default function AppointmentDetailPage() {
   const [medicalRecord, setMedicalRecord] = useState<any>(null);
 
   useEffect(() => {
-
     if (!isAuthenticated) {
       router.push('/login');
       return;
     }
     getAppointmentById(appointmentId);
   }, [appointmentId, isAuthenticated, getAppointmentById, router]);
+
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    if (payment === 'success') {
+      toast({ title: 'Payment Successful', description: 'Your payment has been processed successfully.' });
+      router.replace(`/appointments/${appointmentId}`);
+      getAppointmentById(appointmentId);
+    } else if (payment === 'cancel') {
+      toast({ title: 'Payment Cancelled', description: 'You cancelled the payment. You can try again anytime.', variant: 'destructive' });
+      router.replace(`/appointments/${appointmentId}`);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (currentAppointment?.status === 'COMPLETED') {

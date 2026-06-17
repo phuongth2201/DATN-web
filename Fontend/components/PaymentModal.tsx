@@ -68,7 +68,7 @@ export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps
     
     try {
       // Call real payment API to save to DB and get checkoutUrl from backend
-      await processPayment(appointment.id, selectedMethod.toUpperCase());
+      await processPayment(appointment.id, selectedMethod.toUpperCase(), appointment.price || 500000);
       
       // The processPayment store already has a redirect: window.location.href = response.checkoutUrl;
       // So here we just wait for the redirect.

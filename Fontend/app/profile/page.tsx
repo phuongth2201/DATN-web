@@ -202,10 +202,10 @@ export default function ProfilePage() {
                           name="email"
                           value={formData.email}
                           disabled
-                          className="h-12 rounded-xl border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed font-medium"
+                          className="h-12 rounded-xl border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed font-medium truncate"
                         />
                       ) : (
-                        <div className="h-12 flex items-center px-4 bg-white border border-slate-100 rounded-xl text-slate-900 font-semibold shadow-sm">
+                        <div className="h-12 flex items-center px-4 bg-white border border-slate-100 rounded-xl text-slate-900 font-semibold shadow-sm overflow-x-auto whitespace-nowrap scrollbar-thin">
                           {user.email || 'Not provided'}
                         </div>
                       )}
