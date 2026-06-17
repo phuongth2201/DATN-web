@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260617000000-1" author="system">
+        <update tableName="specialty">
+            <column name="vietnam_name" value="Cardiology"/>
+            <column name="description" value="Diagnosis and treatment of cardiovascular diseases"/>
+            <where>id = 1001</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="20260617000000-2" author="system">
+        <update tableName="specialty">
+            <column name="vietnam_name" value="Neurology"/>
+            <column name="description" value="Specialized in internal neurology"/>
+            <where>id = 1002</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="20260617000000-3" author="system">
+        <update tableName="specialty">
+            <column name="vietnam_name" value="Dermatology"/>
+            <column name="description" value="Diagnosis and treatment of skin diseases"/>
+            <where>id = 1003</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="20260617000000-4" author="system">
+        <update tableName="jhi_user">
+            <column name="first_name" value="Admin"/>
+            <column name="last_name" value=""/>
+            <column name="lang_key" value="en"/>
+            <where>login = 'admin'</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="20260617000000-5" author="system">
+        <update tableName="jhi_user">
+            <column name="lang_key" value="en"/>
+            <where>lang_key = 'vi'</where>
+        </update>
+    </changeSet>
+
+</databaseChangeLog>
