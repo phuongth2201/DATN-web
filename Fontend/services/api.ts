@@ -109,15 +109,11 @@ class ApiService {
 
   async register(data: any) {
     return (await this.client.post('/api/auth/register', {
-      login: data.email.split('@')[0],
+      fullName: data.fullName,
       email: data.email,
       password: data.password,
       confirmPassword: data.confirmPassword,
-      firstName: data.fullName.split(' ')[0],
-      lastName: data.fullName.split(' ').slice(1).join(' '),
-      langKey: 'vi',
-      activated: true,
-      authorities: ['ROLE_USER']
+      phoneNumber: data.phoneNumber,
     })).data;
   }
 
@@ -388,7 +384,7 @@ class ApiService {
       email: data.email,
       phoneNumber: data.phoneNumber || '',
       authorities: data.authorities || ['ROLE_USER'],
-      langKey: 'vi'
+      langKey: 'en'
     };
     const res = await this.client.post('/api/admin/users', payload);
     return this.mapUserData(res.data);

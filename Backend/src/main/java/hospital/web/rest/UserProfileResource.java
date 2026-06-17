@@ -58,7 +58,7 @@ public class UserProfileResource {
                 "fullName",
                 response.getFullName(),
                 "message",
-                "Thông tin cá nhân đã được cập nhật"
+                "Profile updated successfully"
             )
         );
     }
@@ -86,7 +86,7 @@ public class UserProfileResource {
         }
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
-        return ResponseEntity.ok(Map.of("message", "Mật khẩu đã được cập nhật"));
+        return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
     }
 
     @PutMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -106,7 +106,7 @@ public class UserProfileResource {
         String avatarUrl = "/uploads/avatars/" + user.getId() + "/" + originalName;
         user.setImageUrl(avatarUrl);
         userRepository.save(user);
-        return ResponseEntity.ok(Map.of("id", user.getId(), "avatar", avatarUrl, "message", "Ảnh đại diện đã được cập nhật"));
+        return ResponseEntity.ok(Map.of("id", user.getId(), "avatar", avatarUrl, "message", "Avatar updated successfully"));
     }
 
     private User currentUserOrThrow() {

@@ -134,7 +134,7 @@ public class DoctorResource {
         hospital.domain.User user = userRepository.findOneByLogin(login).orElseThrow(() -> new IllegalStateException("User not found"));
 
         if (doctorRepository.findByEmail(user.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Hồ sơ bác sĩ cho email này đã tồn tại"));
+            return ResponseEntity.badRequest().body(Map.of("error", "A doctor profile for this email already exists"));
         }
 
         Doctor doctor = new Doctor();
@@ -157,7 +157,7 @@ public class DoctorResource {
         doctor.setReviewCount(0);
 
         Doctor saved = doctorRepository.save(doctor);
-        return ResponseEntity.ok(Map.of("message", "Hồ sơ bác sĩ đã được tạo thành công", "doctor", toDetail(saved)));
+        return ResponseEntity.ok(Map.of("message", "Doctor profile created successfully", "doctor", toDetail(saved)));
     }
 
     public record OnboardingRequest(

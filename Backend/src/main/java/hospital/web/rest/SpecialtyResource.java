@@ -58,7 +58,7 @@ public class SpecialtyResource {
         return ResponseEntity.status(HttpStatus.CREATED).body(
             Map.of(
                 "message",
-                "Chuyên khoa đã được thêm mới",
+                "Specialty added successfully",
                 "data",
                 toDto(saved)
             )
@@ -73,7 +73,7 @@ public class SpecialtyResource {
         return ResponseEntity.ok(
             Map.of(
                 "message",
-                "Chuyên khoa đã được cập nhật",
+                "Specialty updated successfully",
                 "data",
                 toDto(saved)
             )
@@ -86,12 +86,12 @@ public class SpecialtyResource {
         try {
             specialtyRepository.delete(specialty);
             specialtyRepository.flush();
-            return ResponseEntity.ok(Map.of("message", "Chuyên khoa đã được xóa", "id", id));
+            return ResponseEntity.ok(Map.of("message", "Specialty deleted successfully", "id", id));
         } catch (DataIntegrityViolationException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
                 Map.of(
                     "error",
-                    "Không thể xóa chuyên khoa vì còn dữ liệu liên quan",
+                    "Cannot delete specialty because there is related data",
                     "code",
                     "SPECIALTY_DELETE_CONFLICT"
                 )

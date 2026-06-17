@@ -121,8 +121,8 @@ export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps
                 <div className="flex justify-between items-end mb-4">
                   <div>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Amount</span>
-                    <p className="text-3xl font-black text-slate-900">5.000 đ</p>
-                    <p className="text-xs text-slate-400 line-through">{Number(appointment.price || 500000).toLocaleString('en-US')} đ</p>
+                    <p className="text-3xl font-black text-slate-900">{Number(appointment.price || 500000).toLocaleString('en-US')} VND</p>
+                    <p className="text-xs text-slate-400 line-through">{Number(appointment.price || 500000).toLocaleString('en-US')} VND</p>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Consultation</span>
@@ -194,7 +194,7 @@ export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps
                   />
                 ) : (
                   <img 
-                    src={`https://img.vietqr.io/image/970422-0123456789-compact2.png?amount=5000&addInfo=Thanh toan lich kham ${appointment.id}&accountName=BENH VIEN DA KHOA`} 
+                    src={`https://img.vietqr.io/image/970422-0123456789-compact2.png?amount=${appointment.price || 500000}&addInfo=Payment+for+appointment+${appointment.id}&accountName=GENERAL+HOSPITAL`}
                     alt="VietQR Code" 
                     className="w-64 h-64 object-contain rounded-2xl"
                   />

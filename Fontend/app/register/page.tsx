@@ -50,8 +50,16 @@ export default function RegisterPage() {
     if (!formData.phoneNumber) errors.phoneNumber = 'Phone number is required';
     if (!formData.password) {
       errors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      errors.password = 'Password must be at least 6 characters';
+    } else if (formData.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters';
+    } else if (!/[A-Z]/.test(formData.password)) {
+      errors.password = 'Password must contain at least one uppercase letter';
+    } else if (!/[a-z]/.test(formData.password)) {
+      errors.password = 'Password must contain at least one lowercase letter';
+    } else if (!/\d/.test(formData.password)) {
+      errors.password = 'Password must contain at least one number';
+    } else if (!/[^A-Za-z0-9]/.test(formData.password)) {
+      errors.password = 'Password must contain at least one special character';
     }
     if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = 'Passwords do not match';
@@ -186,7 +194,7 @@ export default function RegisterPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label htmlFor="password" className="block text-sm font-bold text-slate-700 ml-1">
-                    Password
+                    Password <span className="text-slate-400 font-normal text-xs">(8+ chars, A-z, 0-9, symbol)</span>
                   </label>
                   <Input
                     type="password"

@@ -24,7 +24,7 @@ export interface NotificationState {
   markAsRead: (id: number) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   reset: () => void;
-  // Giữ lại hàm cũ để tránh lỗi UI hiện tại
+  // Keep old function to avoid current UI errors
   addNotification: (notification: any) => void;
 }
 

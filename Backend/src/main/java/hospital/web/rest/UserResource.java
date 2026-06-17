@@ -234,7 +234,7 @@ public class UserResource {
         } else {
             userService.deleteUser(id);
         }
-        return ResponseEntity.ok(Map.of("id", id, "message", "Người dùng đã được xóa"));
+        return ResponseEntity.ok(Map.of("id", id, "message", "User deleted successfully"));
     }
 
     private Map<String, Object> toSummary(User user) {

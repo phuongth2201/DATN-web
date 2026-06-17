@@ -145,7 +145,7 @@ public class AdminResource {
         applyDoctorRequest(doctor, request);
         Doctor savedDoctor = doctorRepository.save(doctor);
         return ResponseEntity.status(HttpStatus.CREATED).body(
-            Map.of("message", "Bác sĩ đã được thêm mới", "doctor", doctorDetail(savedDoctor))
+            Map.of("message", "Doctor added successfully", "doctor", doctorDetail(savedDoctor))
         );
     }
 
@@ -154,7 +154,7 @@ public class AdminResource {
         Doctor doctor = doctorRepository.findById(id).orElseThrow(() -> new IllegalStateException("Doctor not found"));
         applyDoctorRequest(doctor, request);
         Doctor savedDoctor = doctorRepository.save(doctor);
-        return ResponseEntity.ok(Map.of("message", "Bác sĩ đã được cập nhật", "doctor", doctorDetail(savedDoctor)));
+        return ResponseEntity.ok(Map.of("message", "Doctor updated successfully", "doctor", doctorDetail(savedDoctor)));
     }
 
     @DeleteMapping("/doctors/{id}")
@@ -163,10 +163,10 @@ public class AdminResource {
         try {
             doctorRepository.delete(doctor);
             doctorRepository.flush();
-            return ResponseEntity.ok(Map.of("id", id, "message", "Bác sĩ đã được xóa"));
+            return ResponseEntity.ok(Map.of("id", id, "message", "Doctor deleted successfully"));
         } catch (DataIntegrityViolationException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                Map.of("error", "Không thể xóa bác sĩ vì còn dữ liệu liên quan", "code", "DOCTOR_DELETE_CONFLICT")
+                Map.of("error", "Cannot delete doctor because there is related data", "code", "DOCTOR_DELETE_CONFLICT")
             );
         }
     }

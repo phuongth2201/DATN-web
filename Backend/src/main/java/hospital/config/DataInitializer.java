@@ -38,39 +38,39 @@ public class DataInitializer implements CommandLineRunner {
             // Create specialties
             Specialty cardio = new Specialty();
             cardio.setName("Cardiology");
-            cardio.setVietnamName("Tim mạch");
-            cardio.setDescription("Khám và điều trị các bệnh lý tim mạch");
+            cardio.setVietnamName("Cardiology");
+            cardio.setDescription("Diagnosis and treatment of cardiovascular diseases");
             cardio.setIcon("Heart");
             cardio = specialtyRepository.save(cardio);
 
             Specialty neuro = new Specialty();
             neuro.setName("Neurology");
-            neuro.setVietnamName("Thần kinh");
-            neuro.setDescription("Chuyên khoa nội thần kinh");
+            neuro.setVietnamName("Neurology");
+            neuro.setDescription("Specialized in internal neurology");
             neuro.setIcon("Brain");
             neuro = specialtyRepository.save(neuro);
 
             Specialty derma = new Specialty();
             derma.setName("Dermatology");
-            derma.setVietnamName("Da liễu");
-            derma.setDescription("Khám và điều trị bệnh ngoài da");
+            derma.setVietnamName("Dermatology");
+            derma.setDescription("Diagnosis and treatment of skin diseases");
             derma.setIcon("Sun");
             derma = specialtyRepository.save(derma);
 
             // Create Hospital
             Hospital hospital = new Hospital();
-            hospital.setName("Bệnh viện Đa khoa Quốc tế");
-            hospital.setAddress("Hà Nội");
+            hospital.setName("International General Hospital");
+            hospital.setAddress("Hanoi");
             hospital.setPhone("0123456789");
             hospital.setEmail("contact@hospital.com");
             hospital = hospitalRepository.save(hospital);
 
             // Create Doctors
             Doctor doc1 = new Doctor();
-            doc1.setFullName("Bác sĩ Nguyễn Văn A");
+            doc1.setFullName("Dr. Nguyen Van A");
             doc1.setEmail("doctor@example.com"); // Login account
             doc1.setPhoneNumber("0987654321");
-            doc1.setBio("Chuyên gia tim mạch hàng đầu với 10 năm kinh nghiệm.");
+            doc1.setBio("Leading cardiologist with over 10 years of experience.");
             doc1.setExperience(10);
             doc1.setPrice(500000L);
             doc1.setRating(4.8);
@@ -79,10 +79,10 @@ public class DataInitializer implements CommandLineRunner {
             doc1 = doctorRepository.save(doc1);
 
             Doctor doc2 = new Doctor();
-            doc2.setFullName("Bác sĩ Trần Thị B");
+            doc2.setFullName("Dr. Tran Thi B");
             doc2.setEmail("tranb@example.com");
             doc2.setPhoneNumber("0912345678");
-            doc2.setBio("Bác sĩ chuyên khoa Thần kinh, tu nghiệp tại Pháp.");
+            doc2.setBio("Neurologist with advanced training in France.");
             doc2.setExperience(7);
             doc2.setPrice(400000L);
             doc2.setRating(4.5);
@@ -91,10 +91,10 @@ public class DataInitializer implements CommandLineRunner {
             doc2 = doctorRepository.save(doc2);
 
             Doctor doc3 = new Doctor();
-            doc3.setFullName("Bác sĩ Lê Hoàng C");
+            doc3.setFullName("Dr. Le Hoang C");
             doc3.setEmail("lehc@example.com");
             doc3.setPhoneNumber("0909090909");
-            doc3.setBio("Chuyên gia Da liễu, điều trị mụn và thẩm mỹ da.");
+            doc3.setBio("Dermatology specialist in acne treatment and skin aesthetics.");
             doc3.setExperience(5);
             doc3.setPrice(300000L);
             doc3.setRating(4.9);
@@ -113,8 +113,8 @@ public class DataInitializer implements CommandLineRunner {
             appointment.setAppointmentDate(java.time.LocalDate.now().plusDays(1));
             appointment.setAppointmentTime(java.time.LocalTime.of(9, 30));
             appointment.setStatus(AppointmentStatus.PENDING);
-            appointment.setReason("Đau đầu, chóng mặt");
-            appointment.setNotes("Bệnh nhân có tiền sử huyết áp cao");
+            appointment.setReason("Headache and dizziness");
+            appointment.setNotes("Patient has a history of high blood pressure");
             appointment.setPrice(doc1.getPrice());
             appointment.setPaymentStatus("UNPAID");
 

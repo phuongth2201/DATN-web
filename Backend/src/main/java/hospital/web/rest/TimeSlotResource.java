@@ -87,7 +87,7 @@ public class TimeSlotResource {
     public ResponseEntity<Map<String, Object>> deleteTimeSlot(@PathVariable Long id) {
         timeSlotRepository.findById(id).orElseThrow(() -> new IllegalStateException("TimeSlot not found"));
         timeSlotRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("id", id, "message", "Time slot đã được xóa"));
+        return ResponseEntity.ok(Map.of("id", id, "message", "Time slot deleted successfully"));
     }
 
     private void applyRequest(TimeSlot timeSlot, TimeSlotRequest request) {

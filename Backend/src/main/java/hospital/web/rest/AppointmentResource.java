@@ -58,7 +58,7 @@ public class AppointmentResource {
         Hospital hospital = resolveHospital(request.hospitalId(), doctor);
         LocalTime requestedTime = LocalTime.parse(request.appointmentTime());
         if (requestedTime.isBefore(LocalTime.of(8, 0)) || requestedTime.isAfter(LocalTime.of(17, 0))) {
-            throw new IllegalStateException("Chỉ được phép đặt lịch trong khoảng từ 08:00 đến 17:00");
+            throw new IllegalStateException("Appointments can only be booked between 08:00 and 17:00");
         }
         ensureSlotAvailable(doctor.getId(), request.appointmentDate(), requestedTime, null);
 
@@ -136,18 +136,17 @@ public class AppointmentResource {
         LocalTime requestedTime = LocalTime.parse(request.appointmentTime());
         
         if (requestedTime.isBefore(LocalTime.of(8, 0)) || requestedTime.isAfter(LocalTime.of(17, 0))) {
-            throw new IllegalStateException("Chỉ được phép đặt lịch trong khoảng từ 08:00 đến 17:00");
+            throw new IllegalStateException("Appointments can only be booked between 08:00 and 17:00");
         }
         
         ensureSlotAvailable(appointment.getDoctor().getId(), request.appointmentDate(), requestedTime, appointment.getId());
         appointment.setAppointmentDate(request.appointmentDate());
         appointment.setAppointmentTime(requestedTime);
         
-        // Luôn đưa về PENDING khi đổi lịch để bác sĩ duyệt lại
         appointment.setStatus(AppointmentStatus.PENDING);
         appointment.setNotes(
-            (appointment.getNotes() == null ? "" : appointment.getNotes() + "\n") + 
-            "[HỆ THỐNG]: Bệnh nhân đã đổi ngày/giờ khám. Vui lòng duyệt lại."
+            (appointment.getNotes() == null ? "" : appointment.getNotes() + "\n") +
+            "[SYSTEM]: Patient has rescheduled the appointment. Please review again."
         );
         
         appointmentRepository.save(appointment);
@@ -164,7 +163,7 @@ public class AppointmentResource {
         }
 
         AppointmentDTO dto = toDto(appointment);
-        dto.setMessage("Lịch khám đã được cập nhật");
+        dto.setMessage("Appointment updated successfully");
         return ResponseEntity.ok(dto);
     }
 
@@ -208,7 +207,7 @@ public class AppointmentResource {
         }
 
         AppointmentDTO dto = toDto(appointment);
-        dto.setMessage("Lịch khám đã được hủy");
+        dto.setMessage("Appointment cancelled successfully");
         return ResponseEntity.ok(dto);
     }
 

@@ -106,7 +106,7 @@ public class ScheduleResource {
     public ResponseEntity<Map<String, Object>> deleteSchedule(@PathVariable Long id) {
         Schedule schedule = scheduleRepository.findById(id).orElseThrow(() -> new IllegalStateException("Schedule not found"));
         scheduleRepository.delete(schedule);
-        return ResponseEntity.ok(Map.of("id", id, "message", "Schedule đã được xóa"));
+        return ResponseEntity.ok(Map.of("id", id, "message", "Schedule deleted successfully"));
     }
 
     @GetMapping("/schedules/{scheduleId}/time-slots")

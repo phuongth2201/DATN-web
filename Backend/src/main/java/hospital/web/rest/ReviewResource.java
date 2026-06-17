@@ -98,7 +98,7 @@ public class ReviewResource {
         Review review = reviewRepository.findById(id).orElseThrow(() -> new IllegalStateException("Review not found"));
         ensureCanModify(review);
         reviewRepository.delete(review);
-        return ResponseEntity.ok(Map.of("message", "Đánh giá đã được xóa"));
+        return ResponseEntity.ok(Map.of("message", "Review deleted successfully"));
     }
 
     private User currentUser() {

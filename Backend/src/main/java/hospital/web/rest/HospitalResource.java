@@ -85,7 +85,7 @@ public class HospitalResource {
 
     private Map<String, Object> toDetail(Hospital hospital) {
         Map<String, Object> map = toSummary(hospital);
-        map.put("services", List.of("Khám tổng quát", "Chụp X-quang", "Siêu âm"));
+        map.put("services", List.of("General Examination", "X-Ray", "Ultrasound"));
         List<Map<String, Object>> doctors = doctorRepository
             .findAll()
             .stream()
