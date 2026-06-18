@@ -161,6 +161,15 @@ public class AdminResource {
         return ResponseEntity.ok(Map.of("message", "Doctor updated successfully", "doctor", doctorDetail(savedDoctor)));
     }
 
+    @PutMapping("/doctors/{id}/status")
+    public ResponseEntity<Map<String, Object>> updateDoctorStatus(@PathVariable Long id, @RequestBody DoctorStatusRequest request) {
+        Doctor doctor = doctorRepository.findById(id).orElseThrow(() -> new IllegalStateException("Doctor not found"));
+        Boolean active = request.isActive() != null ? request.isActive() : request.active();
+        doctor.setActive(active != null ? active : true);
+        Doctor savedDoctor = doctorRepository.save(doctor);
+        return ResponseEntity.ok(Map.of("message", "Doctor status updated successfully", "doctor", doctorDetail(savedDoctor)));
+    }
+
     @DeleteMapping("/doctors/{id}")
     public ResponseEntity<Map<String, Object>> deleteDoctor(@PathVariable Long id) {
         Doctor doctor = doctorRepository.findById(id).orElseThrow(() -> new IllegalStateException("Doctor not found"));
@@ -254,6 +263,8 @@ public class AdminResource {
         map.put("hospital", doctor.getHospital() != null ? doctor.getHospital().getName() : null);
         map.put("appointments", appointmentRepository.countByDoctorId(doctor.getId()));
         map.put("rating", doctor.getRating());
+        map.put("active", doctor.getActive() == null ? true : doctor.getActive());
+        map.put("isAvailable", doctor.getActive() == null ? true : doctor.getActive());
         return map;
     }
 
@@ -286,6 +297,8 @@ public class AdminResource {
         map.put("price", doctor.getPrice());
         map.put("rating", doctor.getRating());
         map.put("reviewCount", doctor.getReviewCount());
+        map.put("active", doctor.getActive() == null ? true : doctor.getActive());
+        map.put("isAvailable", doctor.getActive() == null ? true : doctor.getActive());
         map.put("specialty", specialty);
         map.put("hospital", hospital);
         map.put("appointments", appointmentRepository.countByDoctorId(doctor.getId()));
@@ -324,6 +337,7 @@ public class AdminResource {
         doctor.setPrice(request.price());
         doctor.setRating(request.rating());
         doctor.setReviewCount(request.reviewCount());
+        doctor.setActive(request.active() != null ? request.active() : (doctor.getActive() == null ? true : doctor.getActive()));
 
         Specialty specialty = specialtyRepository
             .findById(request.specialtyId())
@@ -355,7 +369,10 @@ public class AdminResource {
         Long price,
         Double rating,
         Integer reviewCount,
+        Boolean active,
         @NotNull Long specialtyId,
         @NotNull Long hospitalId
     ) {}
+
+    public record DoctorStatusRequest(Boolean isActive, Boolean active) {}
 }
