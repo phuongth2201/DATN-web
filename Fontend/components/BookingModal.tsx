@@ -174,7 +174,7 @@ export function BookingModal({ isOpen, onClose }: BookingModalProps) {
               <option value="">-- Choose a doctor --</option>
               {doctors.map((doctor) => (
                 <option key={doctor.id} value={String(doctor.id)}>
-                  {doctor.fullName} ({doctor.specialization || doctor.specialty})
+                  Dr. {doctor.fullName} ({doctor.specialization || doctor.specialty})
                 </option>
               ))}
             </select>
@@ -183,7 +183,7 @@ export function BookingModal({ isOpen, onClose }: BookingModalProps) {
           {selectedDoctor && (
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-3xl border border-blue-100 flex justify-between items-center shadow-sm">
               <div>
-                <p className="font-black text-slate-900 text-lg">{selectedDoctor.fullName}</p>
+                <p className="font-black text-slate-900 text-lg">Dr. {selectedDoctor.fullName}</p>
                 <p className="text-sm font-bold text-primary/80 uppercase tracking-wider">{selectedDoctor.specialization || selectedDoctor.specialty}</p>
               </div>
               <div className="text-right">
