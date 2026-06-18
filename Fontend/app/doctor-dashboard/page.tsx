@@ -45,6 +45,7 @@ export default function DoctorDashboard() {
 
   const [filterDate, setFilterDate] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [sortBy, setSortBy] = useState<'created' | 'date'>('created');
   const [currentPage, setCurrentPage] = useState(1);
 
   const [appliedFilterDate, setAppliedFilterDate] = useState<string>('');
@@ -257,6 +258,9 @@ export default function DoctorDashboard() {
   const allSortedFiltered = [...filteredAppointments].sort((a, b) => {
     const diff = (STATUS_SORT[a.status] ?? 99) - (STATUS_SORT[b.status] ?? 99);
     if (diff !== 0) return diff;
+    if (sortBy === 'created') {
+      return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
+    }
     return new Date(b.appointmentDate + 'T00:00:00').getTime() - new Date(a.appointmentDate + 'T00:00:00').getTime();
   });
   const totalPages = Math.ceil(allSortedFiltered.length / ITEMS_PER_PAGE);
@@ -325,8 +329,8 @@ export default function DoctorDashboard() {
           <div className="bg-white p-4 rounded-xl shadow-sm mb-8 flex flex-col sm:flex-row gap-4 items-end">
             <div className="flex-1 space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Filter by Date</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -334,7 +338,7 @@ export default function DoctorDashboard() {
             </div>
             <div className="flex-1 space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Filter by Status</label>
-              <select 
+              <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
@@ -344,6 +348,17 @@ export default function DoctorDashboard() {
                 <option value="CONFIRMED">Confirmed</option>
                 <option value="COMPLETED">Completed</option>
                 <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Sort by</label>
+              <select
+                value={sortBy}
+                onChange={(e) => { setSortBy(e.target.value as 'created' | 'date'); setCurrentPage(1); }}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="created">Newest Created</option>
+                <option value="date">By Appointment Date</option>
               </select>
             </div>
             <div className="flex-none flex gap-2">
