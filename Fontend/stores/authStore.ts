@@ -87,18 +87,22 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ isLoading: true });
     try {
       await apiService.logout();
+    } catch {
+      // ignore — tokens already removed by apiService.logout()
+    } finally {
       set({
         isLoading: false,
         user: null,
         isAuthenticated: false,
         isInitialized: true,
       });
-    } catch (error) {
-      set({ isLoading: false });
     }
   },
 
   checkAuth: async () => {
+    // Guard against concurrent or redundant calls
+    const { isInitialized, isLoading } = useAuthStore.getState();
+    if (isInitialized || isLoading) return;
     set({ isLoading: true });
     const token = Cookie.get('accessToken');
     if (token) {

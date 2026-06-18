@@ -4,6 +4,7 @@ import hospital.domain.Appointment;
 import hospital.domain.Doctor;
 import hospital.domain.Hospital;
 import hospital.domain.Specialty;
+import hospital.domain.enumeration.AppointmentStatus;
 import hospital.repository.AppointmentRepository;
 import hospital.repository.DoctorRepository;
 import hospital.repository.HospitalRepository;
@@ -16,6 +17,7 @@ import hospital.service.dto.PaginationDTO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,39 +68,41 @@ public class AdminResource {
 
     @GetMapping("/dashboard")
     public ResponseEntity<Map<String, Object>> dashboard() {
+        List<Appointment> allAppointments = appointmentRepository.findAll();
+        LocalDate startOfMonth = LocalDate.now().withDayOfMonth(1);
+
+        long totalRevenue = paymentRepository
+            .findAll()
+            .stream()
+            .filter(p -> "SUCCESS".equalsIgnoreCase(p.getStatus()))
+            .mapToLong(p -> p.getAmount() == null ? 0L : p.getAmount())
+            .sum();
+
+        long monthlyRevenue = paymentRepository
+            .findAll()
+            .stream()
+            .filter(p -> "SUCCESS".equalsIgnoreCase(p.getStatus()) && p.getCreatedAt() != null &&
+                !p.getCreatedAt().isBefore(startOfMonth.atStartOfDay().toInstant(java.time.ZoneOffset.UTC)))
+            .mapToLong(p -> p.getAmount() == null ? 0L : p.getAmount())
+            .sum();
+
+        long monthlyAppointments = allAppointments.stream()
+            .filter(a -> a.getAppointmentDate() != null && !a.getAppointmentDate().isBefore(startOfMonth))
+            .count();
+
         Map<String, Object> statistics = new LinkedHashMap<>();
         statistics.put("totalUsers", userRepository.count());
         statistics.put("totalDoctors", doctorRepository.count());
-        statistics.put("totalAppointments", appointmentRepository.count());
-        statistics.put(
-            "totalRevenue",
-            paymentRepository
-                .findAll()
-                .stream()
-                .filter(p -> "SUCCESS".equalsIgnoreCase(p.getStatus()))
-                .mapToLong(p -> p.getAmount() == null ? 0L : p.getAmount())
-                .sum()
-        );
-        statistics.put("monthlyAppointments", appointmentRepository.count());
-        statistics.put("monthlyRevenue", statistics.get("totalRevenue"));
+        statistics.put("totalAppointments", allAppointments.size());
+        statistics.put("totalRevenue", totalRevenue);
+        statistics.put("monthlyAppointments", monthlyAppointments);
+        statistics.put("monthlyRevenue", monthlyRevenue);
 
         Map<String, Object> appointmentStatuses = new LinkedHashMap<>();
-        appointmentStatuses.put(
-            "PENDING",
-            appointmentRepository.findAll().stream().filter(a -> a.getStatus() != null && "PENDING".equals(a.getStatus().name())).count()
-        );
-        appointmentStatuses.put(
-            "CONFIRMED",
-            appointmentRepository.findAll().stream().filter(a -> a.getStatus() != null && "CONFIRMED".equals(a.getStatus().name())).count()
-        );
-        appointmentStatuses.put(
-            "COMPLETED",
-            appointmentRepository.findAll().stream().filter(a -> a.getStatus() != null && "COMPLETED".equals(a.getStatus().name())).count()
-        );
-        appointmentStatuses.put(
-            "CANCELLED",
-            appointmentRepository.findAll().stream().filter(a -> a.getStatus() != null && "CANCELLED".equals(a.getStatus().name())).count()
-        );
+        appointmentStatuses.put("PENDING", allAppointments.stream().filter(a -> a.getStatus() == AppointmentStatus.PENDING).count());
+        appointmentStatuses.put("CONFIRMED", allAppointments.stream().filter(a -> a.getStatus() == AppointmentStatus.CONFIRMED).count());
+        appointmentStatuses.put("COMPLETED", allAppointments.stream().filter(a -> a.getStatus() == AppointmentStatus.COMPLETED).count());
+        appointmentStatuses.put("CANCELLED", allAppointments.stream().filter(a -> a.getStatus() == AppointmentStatus.CANCELLED).count());
         statistics.put("appointmentStatuses", appointmentStatuses);
 
         return ResponseEntity.ok(Map.of("statistics", statistics));
@@ -203,7 +207,20 @@ public class AdminResource {
         @RequestBody UpdateAppointmentStatusRequest request
     ) {
         Appointment appointment = appointmentRepository.findById(id).orElseThrow(() -> new IllegalStateException("Appointment not found"));
-        appointment.setStatus(hospital.domain.enumeration.AppointmentStatus.valueOf(request.status()));
+        AppointmentStatus newStatus;
+        try {
+            newStatus = AppointmentStatus.valueOf(request.status());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid status: " + request.status()));
+        }
+        AppointmentStatus current = appointment.getStatus();
+        if (current == AppointmentStatus.CANCELLED && newStatus != AppointmentStatus.CANCELLED) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Cannot change status of a cancelled appointment"));
+        }
+        if (current == AppointmentStatus.COMPLETED && newStatus == AppointmentStatus.PENDING) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Cannot revert a completed appointment to pending"));
+        }
+        appointment.setStatus(newStatus);
         appointmentRepository.save(appointment);
 
         if (appointment.getUser() != null) {
@@ -235,14 +252,7 @@ public class AdminResource {
         map.put("email", doctor.getEmail());
         map.put("specialty", doctor.getSpecialty() != null ? doctor.getSpecialty().getName() : null);
         map.put("hospital", doctor.getHospital() != null ? doctor.getHospital().getName() : null);
-        map.put(
-            "appointments",
-            appointmentRepository
-                .findAll()
-                .stream()
-                .filter(a -> a.getDoctor() != null && a.getDoctor().getId().equals(doctor.getId()))
-                .count()
-        );
+        map.put("appointments", appointmentRepository.countByDoctorId(doctor.getId()));
         map.put("rating", doctor.getRating());
         return map;
     }
@@ -278,14 +288,7 @@ public class AdminResource {
         map.put("reviewCount", doctor.getReviewCount());
         map.put("specialty", specialty);
         map.put("hospital", hospital);
-        map.put(
-            "appointments",
-            appointmentRepository
-                .findAll()
-                .stream()
-                .filter(a -> a.getDoctor() != null && a.getDoctor().getId().equals(doctor.getId()))
-                .count()
-        );
+        map.put("appointments", appointmentRepository.countByDoctorId(doctor.getId()));
         return map;
     }
 
@@ -293,7 +296,14 @@ public class AdminResource {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", appointment.getId());
         map.put("userId", appointment.getUser() != null ? appointment.getUser().getId() : null);
-        map.put("userName", appointment.getUser() != null ? appointment.getUser().getFirstName() : null);
+        if (appointment.getUser() != null) {
+            String firstName = appointment.getUser().getFirstName();
+            String lastName = appointment.getUser().getLastName();
+            String fullName = ((firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "")).trim();
+            map.put("userName", fullName.isEmpty() ? appointment.getUser().getLogin() : fullName);
+        } else {
+            map.put("userName", null);
+        }
         map.put("doctorId", appointment.getDoctor() != null ? appointment.getDoctor().getId() : null);
         map.put("doctorName", appointment.getDoctor() != null ? appointment.getDoctor().getFullName() : null);
         map.put("appointmentDate", appointment.getAppointmentDate());

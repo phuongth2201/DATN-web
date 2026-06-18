@@ -22,6 +22,7 @@ import {
 import {
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -50,6 +51,8 @@ export default function AdminUsersPage() {
   // Error Alert State
   const [isErrorAlertOpen, setIsErrorAlertOpen] = useState(false);
   const [errorAlertMessage, setErrorAlertMessage] = useState('');
+  const [userToDelete, setUserToDelete] = useState<any>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -160,10 +163,8 @@ export default function AdminUsersPage() {
         });
       }
       
-      // Refresh the list from the server
       setIsModalOpen(false);
       await fetchUsers();
-      await fetchUsers(); // Refresh list from server to be sure
     } catch (error) {
       console.error('Failed to update user:', error);
       toast({
@@ -177,6 +178,15 @@ export default function AdminUsersPage() {
   };
 
   const handleDelete = async (u: any) => {
+    setUserToDelete(u);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    const u = userToDelete;
+    setIsDeleteConfirmOpen(false);
+    setUserToDelete(null);
     const identifier = u.id || u.login || u.email;
     try {
       await apiService.deleteUser(identifier);
@@ -420,11 +430,11 @@ export default function AdminUsersPage() {
                   <Label htmlFor="password" className="text-right">Password</Label>
                   <Input
                     id="password"
-                    type="text"
+                    type="password"
                     value={selectedUser.password || ''}
                     onChange={(e) => setSelectedUser({ ...selectedUser, password: e.target.value })}
                     className="col-span-3 font-mono"
-                    placeholder="Hospital@123"
+                    placeholder="Min 8 chars, 1 uppercase, 1 number"
                   />
                 </div>
               )}
@@ -444,6 +454,24 @@ export default function AdminUsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent className="max-w-[400px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User Account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{userToDelete?.fullName || userToDelete?.email}</strong>. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white" onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Beautiful Error Alert Dialog */}
       <AlertDialog open={isErrorAlertOpen} onOpenChange={setIsErrorAlertOpen}>

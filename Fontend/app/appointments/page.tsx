@@ -15,20 +15,22 @@ import { useState } from 'react';
 
 export default function AppointmentsPage() {
   const router = useRouter();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, isInitialized, user } = useAuthStore();
   const { appointments, isLoading, fetchAppointments } = useAppointmentStore();
   const { toast } = useToast();
   const [selectedAptToPay, setSelectedAptToPay] = useState<any>(null);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterDate, setFilterDate] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'date' | 'created'>('date');
+  const [sortBy, setSortBy] = useState<'date' | 'created'>('created');
+  const [sortByStatus, setSortByStatus] = useState(false);
 
   useEffect(() => {
+    if (!isInitialized) return;
     if (!isAuthenticated) {
       router.push('/login');
       return;
     }
-    
+
     const role = user?.role?.toUpperCase();
     if (role === 'DOCTOR' || role === 'ROLE_DOCTOR') {
       router.push('/doctor-dashboard');
@@ -36,9 +38,9 @@ export default function AppointmentsPage() {
     }
 
     fetchAppointments();
-  }, [isAuthenticated, user?.role, fetchAppointments, router]);
+  }, [isInitialized, isAuthenticated, user?.role, fetchAppointments, router]);
 
-  if (!isAuthenticated) {
+  if (!isInitialized || !isAuthenticated) {
     return null;
   }
 
@@ -68,12 +70,21 @@ export default function AppointmentsPage() {
     }
   };
 
+  const STATUS_ORDER: Record<string, number> = { CONFIRMED: 0, PENDING: 1, COMPLETED: 2, CANCELLED: 3 };
+
   const sortedAppointments = [...appointments].sort((a, b) => {
+    // Sort 2 (status) takes priority when enabled
+    if (sortByStatus) {
+      const statusDiff = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
+      if (statusDiff !== 0) return statusDiff;
+      // Same status: fall through to sort 1 logic below
+    }
+
+    // Sort 1: by created date or appointment date
     if (sortBy === 'created') {
       return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
     }
-    // 'date': sort by appointmentDate desc, then time desc
-    const dateDiff = new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime();
+    const dateDiff = new Date(b.appointmentDate + 'T00:00:00').getTime() - new Date(a.appointmentDate + 'T00:00:00').getTime();
     if (dateDiff !== 0) return dateDiff;
     return (b.appointmentTime ?? '').localeCompare(a.appointmentTime ?? '');
   });
@@ -105,17 +116,19 @@ export default function AppointmentsPage() {
           {/* Filter Section */}
           {!isLoading && appointments.length > 0 && (
             <div className="flex flex-col md:flex-row md:items-center gap-4 mb-8">
-              <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide flex-1">
-                {['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'].map((status) => (
-                  <Button
-                    key={status}
-                    variant={filterStatus === status ? 'default' : 'outline'}
-                    onClick={() => setFilterStatus(status)}
-                    className={`rounded-full px-6 transition-all whitespace-nowrap ${filterStatus === status ? 'bg-primary text-white shadow-md' : 'bg-white hover:bg-slate-50'}`}
-                  >
-                    {status === 'ALL' ? 'All Appointments' : status.charAt(0) + status.slice(1).toLowerCase()}
-                  </Button>
-                ))}
+              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm w-fit">
+                <AlertCircle className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="bg-transparent border-none outline-none text-sm text-slate-700 font-medium cursor-pointer"
+                >
+                  <option value="ALL">All Appointments ({appointments.length})</option>
+                  <option value="PENDING">Pending ({appointments.filter(a => a.status === 'PENDING').length})</option>
+                  <option value="CONFIRMED">Confirmed ({appointments.filter(a => a.status === 'CONFIRMED').length})</option>
+                  <option value="COMPLETED">Completed ({appointments.filter(a => a.status === 'COMPLETED').length})</option>
+                  <option value="CANCELLED">Cancelled ({appointments.filter(a => a.status === 'CANCELLED').length})</option>
+                </select>
               </div>
               
               <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm w-fit focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all">
@@ -140,10 +153,27 @@ export default function AppointmentsPage() {
                   onChange={(e) => setSortBy(e.target.value as 'date' | 'created')}
                   className="bg-transparent border-none outline-none text-sm text-slate-700 font-medium cursor-pointer"
                 >
-                  <option value="date">By Appointment Date</option>
                   <option value="created">Newest Created</option>
+                  <option value="date">By Appointment Date</option>
                 </select>
               </div>
+
+              <button
+                onClick={() => setSortByStatus(v => !v)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full border shadow-sm text-sm font-medium transition-all whitespace-nowrap ${
+                  sortByStatus
+                    ? 'bg-primary text-white border-primary shadow-primary/20'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <span className="text-base leading-none">↕</span>
+                By Status
+                {sortByStatus && (
+                  <span className="text-[10px] opacity-80 font-normal ml-0.5">
+                    (Confirmed → Pending → ...)
+                  </span>
+                )}
+              </button>
             </div>
           )}
 
@@ -244,8 +274,10 @@ export default function AppointmentsPage() {
                       <div className="space-y-2">
                         <p className="text-sm text-foreground/60 font-semibold uppercase">Actions</p>
                         
-                        {appointment.status === 'CONFIRMED' && appointment.paymentStatus !== 'PAID' && (
-                          <Button 
+                        {appointment.status === 'CONFIRMED' &&
+                          appointment.paymentStatus !== 'PAID' &&
+                          new Date(appointment.appointmentDate + 'T00:00:00') >= new Date(new Date().toDateString()) && (
+                          <Button
                             onClick={() => setSelectedAptToPay(appointment)}
                             className="w-full bg-green-600 hover:bg-green-700 text-white mb-2"
                           >

@@ -43,10 +43,11 @@ export default function DoctorDashboard() {
   // Get today's date in YYYY-MM-DD
   const todayDate = new Date().toISOString().split('T')[0];
 
-  const [filterDate, setFilterDate] = useState<string>(todayDate);
+  const [filterDate, setFilterDate] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
-  
-  const [appliedFilterDate, setAppliedFilterDate] = useState<string>(todayDate);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const [appliedFilterDate, setAppliedFilterDate] = useState<string>('');
   const [appliedFilterStatus, setAppliedFilterStatus] = useState<string>('ALL');
   
   // Track previous pending count for notifications
@@ -247,8 +248,22 @@ export default function DoctorDashboard() {
   const completedAppointments = filteredAppointments.filter(a => a.status === 'COMPLETED');
   const cancelledAppointments = filteredAppointments.filter(a => a.status === 'CANCELLED');
 
-  // Simple stats for mock
-  const uniquePatients = new Set(appointments.map(a => a.patientId || a.id)).size;
+  const uniquePatients = new Set(
+    appointments.map(a => a.patientId).filter(id => id != null)
+  ).size;
+
+  const ITEMS_PER_PAGE = 10;
+  const STATUS_SORT: Record<string, number> = { PENDING: 0, CONFIRMED: 1, COMPLETED: 2, CANCELLED: 3 };
+  const allSortedFiltered = [...filteredAppointments].sort((a, b) => {
+    const diff = (STATUS_SORT[a.status] ?? 99) - (STATUS_SORT[b.status] ?? 99);
+    if (diff !== 0) return diff;
+    return new Date(b.appointmentDate + 'T00:00:00').getTime() - new Date(a.appointmentDate + 'T00:00:00').getTime();
+  });
+  const totalPages = Math.ceil(allSortedFiltered.length / ITEMS_PER_PAGE);
+  const paginatedFiltered = allSortedFiltered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const pendingPage = paginatedFiltered.filter(a => a.status === 'PENDING');
+  const scheduledPage = paginatedFiltered.filter(a => a.status === 'CONFIRMED');
+  const historyPage = paginatedFiltered.filter(a => a.status === 'COMPLETED' || a.status === 'CANCELLED');
 
   return (
     <>
@@ -332,23 +347,25 @@ export default function DoctorDashboard() {
               </select>
             </div>
             <div className="flex-none flex gap-2">
-              <Button 
-                onClick={async () => { 
-                  setAppliedFilterDate(filterDate); 
-                  setAppliedFilterStatus(filterStatus); 
-                  await fetchAppointments(); 
+              <Button
+                onClick={async () => {
+                  setAppliedFilterDate(filterDate);
+                  setAppliedFilterStatus(filterStatus);
+                  setCurrentPage(1);
+                  await fetchAppointments();
                 }}
                 className="h-[42px] bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all"
               >
                 Search
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => { 
-                  setFilterDate(''); 
-                  setFilterStatus('ALL'); 
-                  setAppliedFilterDate(''); 
-                  setAppliedFilterStatus('ALL'); 
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFilterDate('');
+                  setFilterStatus('ALL');
+                  setAppliedFilterDate('');
+                  setAppliedFilterStatus('ALL');
+                  setCurrentPage(1);
                 }}
                 className="h-[42px]"
               >
@@ -361,7 +378,7 @@ export default function DoctorDashboard() {
             {/* Main Content - Schedule */}
             <div className="lg:col-span-2 space-y-8">
               {/* Pending Appointments Section */}
-              {pendingAppointments.length > 0 && (
+              {pendingPage.length > 0 && (
                 <section>
                   <div className="flex items-center gap-2 mb-6">
                     <Activity className="text-amber-500 w-6 h-6" />
@@ -369,7 +386,7 @@ export default function DoctorDashboard() {
                     <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-800">{pendingAppointments.length}</Badge>
                   </div>
                   <div className="space-y-4">
-                    {pendingAppointments.map(apt => (
+                    {pendingPage.map(apt => (
                       <Card 
                         key={apt.id} 
                         className="border border-amber-100 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-amber-300 transition-all duration-300 overflow-hidden relative cursor-pointer group"
@@ -395,16 +412,16 @@ export default function DoctorDashboard() {
                                   handleUpdateStatus(apt.id, 'CANCELLED');
                                 }}
                               >
-                                Decline
+                                Cancel
                               </Button>
-                              <Button 
+                              <Button
                                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleUpdateStatus(apt.id, 'CONFIRMED');
                                 }}
                               >
-                                Approve
+                                Confirm
                               </Button>
                             </div>
                           </div>
@@ -416,7 +433,7 @@ export default function DoctorDashboard() {
               )}
 
               {/* Scheduled Appointments */}
-              {(appliedFilterStatus === 'ALL' || appliedFilterStatus === 'CONFIRMED') && (
+              {scheduledPage.length > 0 && (appliedFilterStatus === 'ALL' || appliedFilterStatus === 'CONFIRMED') && (
                 <section>
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-2">
@@ -429,19 +446,9 @@ export default function DoctorDashboard() {
                   <div className="space-y-4">
                     {[1, 2].map(i => <div key={i} className="h-32 bg-slate-100 animate-pulse rounded-2xl" />)}
                   </div>
-                ) : scheduledAppointments.length === 0 ? (
-                  <Card className="border-dashed border-2 bg-slate-50">
-                    <CardContent className="py-12 text-center">
-                      <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                        <Clock className="w-8 h-8 text-slate-300" />
-                      </div>
-                      <h3 className="text-lg font-bold text-slate-700">No scheduled appointments</h3>
-                      <p className="text-slate-500">Your schedule is clear for now.</p>
-                    </CardContent>
-                  </Card>
                 ) : (
                   <div className="space-y-4">
-                    {scheduledAppointments.map(apt => (
+                    {scheduledPage.map(apt => (
                       <Card 
                         key={apt.id} 
                         className="border border-transparent shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 transition-all duration-300 overflow-hidden relative cursor-pointer group"
@@ -511,13 +518,13 @@ export default function DoctorDashboard() {
               )}
 
               {/* History / Other Appointments */}
-              {(appliedFilterStatus === 'ALL' || appliedFilterStatus === 'COMPLETED' || appliedFilterStatus === 'CANCELLED') && (completedAppointments.length > 0 || cancelledAppointments.length > 0) && (
+              {historyPage.length > 0 && (appliedFilterStatus === 'ALL' || appliedFilterStatus === 'COMPLETED' || appliedFilterStatus === 'CANCELLED') && (
                 <section className="mt-8 pt-8 border-t border-slate-200">
                   <div className="flex items-center gap-2 mb-6">
                     <h2 className="text-xl font-bold text-slate-800">History (Completed & Cancelled)</h2>
                   </div>
                   <div className="space-y-4">
-                    {[...completedAppointments, ...cancelledAppointments].map(apt => (
+                    {historyPage.map(apt => (
                       <Card 
                         key={apt.id} 
                         className={`border border-transparent shadow-sm overflow-hidden relative cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-slate-200 transition-all duration-300 ${apt.status === 'CANCELLED' ? 'opacity-70' : ''}`}
@@ -600,6 +607,62 @@ export default function DoctorDashboard() {
               </Card>
             </div>
           </div>
+
+          {/* Pagination */}
+          {!isLoading && totalPages > 1 && (
+            <div className="mt-8 flex items-center justify-center gap-3">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                ← Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
+                      currentPage === page
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                Next →
+              </button>
+            </div>
+          )}
+
+          {/* Empty state when no appointments exist at all */}
+          {!isLoading && filteredAppointments.length === 0 && (
+            <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-slate-100">
+              <Calendar className="w-14 h-14 mx-auto text-slate-300 mb-4" />
+              <h3 className="text-lg font-bold text-slate-700 mb-1">No appointments found</h3>
+              <p className="text-slate-500 text-sm">
+                {appliedFilterDate || appliedFilterStatus !== 'ALL'
+                  ? 'No appointments match your current filters.'
+                  : 'You have no appointments yet.'}
+              </p>
+              {(appliedFilterDate || appliedFilterStatus !== 'ALL') && (
+                <button
+                  onClick={() => { setFilterDate(''); setFilterStatus('ALL'); setAppliedFilterDate(''); setAppliedFilterStatus('ALL'); setCurrentPage(1); }}
+                  className="mt-4 px-5 py-2 rounded-full border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </main>
 

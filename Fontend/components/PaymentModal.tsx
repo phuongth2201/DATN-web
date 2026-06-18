@@ -43,8 +43,6 @@ export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps
     let timer: NodeJS.Timeout;
     if (step === 'qr_code' && countdown > 0) {
       timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-    } else if (step === 'qr_code' && countdown === 0) {
-      executePayment();
     }
     return () => clearTimeout(timer);
   }, [step, countdown]);
@@ -122,7 +120,6 @@ export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps
                   <div>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Amount</span>
                     <p className="text-3xl font-black text-slate-900">{Number(appointment.price || 500000).toLocaleString('en-US')} VND</p>
-                    <p className="text-xs text-slate-400 line-through">{Number(appointment.price || 500000).toLocaleString('en-US')} VND</p>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Consultation</span>

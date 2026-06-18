@@ -34,7 +34,7 @@ export default function AdminAppointmentsPage() {
   });
 
   const role = user?.role?.toUpperCase();
-  const hasAccess = role === 'ADMIN' || role === 'ROLE_ADMIN' || role === 'DOCTOR' || role === 'ROLE_DOCTOR';
+  const hasAccess = role === 'ADMIN' || role === 'ROLE_ADMIN';
 
   const fetchAppointments = async () => {
     setIsLoading(true);
@@ -111,19 +111,28 @@ export default function AdminAppointmentsPage() {
     if (!selectedAppointment) return;
 
     setIsSubmittingRecord(true);
+    let createdRecordId: number | null = null;
     try {
       // 1. Create the medical record
-      // Backend auto-resolves patient from appointmentId
-      await apiService.createMedicalRecord({
+      const recordRes = await apiService.createMedicalRecord({
         appointmentId: Number(selectedAppointment.id),
         doctorId: Number(selectedAppointment.doctorId),
         diagnosis: recordForm.diagnosis,
         treatment: recordForm.treatment,
         notes: recordForm.notes,
       });
+      createdRecordId = recordRes?.id ?? recordRes?.data?.id ?? null;
 
       // 2. Mark appointment as COMPLETED
-      await apiService.updateAppointmentStatus(selectedAppointment.id, 'COMPLETED');
+      try {
+        await apiService.updateAppointmentStatus(selectedAppointment.id, 'COMPLETED');
+      } catch (statusError: any) {
+        // Step 2 failed — attempt to delete the dangling medical record
+        if (createdRecordId) {
+          try { await apiService.deleteMedicalRecord(createdRecordId); } catch {}
+        }
+        throw statusError;
+      }
 
       // Notify patient
       addNotification({
@@ -339,6 +348,7 @@ export default function AdminAppointmentsPage() {
               <Button
                 variant="ghost"
                 onClick={() => setPage(page + 1)}
+                disabled={appointments.length < 10}
                 className="font-bold"
               >
                 Next Page

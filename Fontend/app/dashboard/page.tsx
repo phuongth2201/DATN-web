@@ -39,9 +39,7 @@ export default function DashboardPage() {
     }
 
     const role = user?.role?.toUpperCase();
-    console.log('Current User Role in Dashboard:', role);
     if (role === 'ADMIN' || role === 'ROLE_ADMIN') {
-      console.log('Redirecting to Admin...');
       router.push('/admin');
       return;
     }
@@ -78,9 +76,6 @@ export default function DashboardPage() {
     }
   });
 
-  console.log('All appointments:', appointments);
-  console.log('Soon appointments detected:', soonAppointments);
-  
   const completedAppointments = appointments.filter(
     (apt) => apt.status === 'COMPLETED'
   );

@@ -41,7 +41,7 @@ class ApiService {
           } catch (refreshError) {
             Cookie.remove('accessToken');
             Cookie.remove('refreshToken');
-            window.location.href = '/login';
+            if (typeof window !== 'undefined') window.location.href = '/login';
             return Promise.reject(refreshError);
           } finally {
             this.refreshTokenPromise = null;
@@ -205,6 +205,10 @@ class ApiService {
   }) {
     const res = await this.client.post('/api/medical-records', data);
     return res.data;
+  }
+
+  async deleteMedicalRecord(id: number) {
+    return (await this.client.delete(`/api/medical-records/${id}`)).data;
   }
 
   // Doctor & Schedule endpoints
@@ -392,13 +396,7 @@ class ApiService {
   }
 
   async deleteUser(identifier: string | number) {
-    try {
-      // Try as ID first if numeric
-      return (await this.client.delete(`/api/admin/users/${identifier}`)).data;
-    } catch (error) {
-      // If it fails, maybe the backend expects login/email
-      return (await this.client.delete(`/api/admin/users/${identifier}`)).data;
-    }
+    return (await this.client.delete(`/api/admin/users/${identifier}`)).data;
   }
 
   async getAllDoctors(page = 1, limit = 20) {
@@ -626,7 +624,7 @@ class ApiService {
           usersUp: !calcTrend(users, 'createdAt').startsWith('-'),
           appointments: calcTrend(appointments, 'appointmentDate'),
           appointmentsUp: !calcTrend(appointments, 'appointmentDate').startsWith('-'),
-          revenue: revenueTrendPct.startsWith('-') ? revenueTrendPct : `+${revenueTrendPct}`,
+          revenue: revenueTrendPct.startsWith('+') || revenueTrendPct.startsWith('-') ? revenueTrendPct : `+${revenueTrendPct}`,
           revenueUp: !revenueTrendPct.startsWith('-'),
           doctors: calcTrend(doctors, 'createdAt'),
           doctorsUp: !calcTrend(doctors, 'createdAt').startsWith('-')

@@ -66,8 +66,8 @@ export default function AdminStatisticsPage() {
   const handleExportJSON = () => {
     const exportData = {
       summary: {
-        newPatients: 42,
-        conversionRate: '78%',
+        totalAppointments: data?.totalAppointments ?? 0,
+        totalRevenue: data?.totalRevenue ?? 0,
         timeRange,
         exportedAt: new Date().toISOString()
       },
@@ -104,29 +104,15 @@ export default function AdminStatisticsPage() {
     return null;
   }
 
-  // Mock data for comparison if backend data is sparse
-  const dailyData = data?.dailyStats || [
-    { name: 'Mon', appointments: 12, previous: 10 },
-    { name: 'Tue', appointments: 19, previous: 15 },
-    { name: 'Wed', appointments: 15, previous: 18 },
-    { name: 'Thu', appointments: 22, previous: 20 },
-    { name: 'Fri', appointments: 30, previous: 25 },
-    { name: 'Sat', appointments: 25, previous: 30 },
-    { name: 'Sun', appointments: 10, previous: 12 },
-  ];
+  const dailyData = data?.dailyStats && data.dailyStats.length > 0 ? data.dailyStats : [];
 
-  const monthlyData = data?.revenueStats?.map((item: any) => ({
-    name: item.month,
-    appointments: Math.round(item.revenue / 10000), // Approximate appointments for visual
-    revenue: item.revenue
-  })) || [
-    { name: 'Jan', appointments: 120, revenue: 4500 },
-    { name: 'Feb', appointments: 150, revenue: 5200 },
-    { name: 'Mar', appointments: 200, revenue: 7800 },
-    { name: 'Apr', appointments: 180, revenue: 6500 },
-    { name: 'May', appointments: 250, revenue: 9000 },
-    { name: 'Jun', appointments: 300, revenue: 12000 },
-  ];
+  const monthlyData = data?.revenueStats && data.revenueStats.length > 0
+    ? data.revenueStats.map((item: any) => ({
+        name: item.month,
+        appointments: item.appointments ?? 0,
+        revenue: item.revenue ?? 0
+      }))
+    : [];
 
   return (
     <>

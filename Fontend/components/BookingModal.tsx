@@ -69,6 +69,7 @@ export function BookingModal({ isOpen, onClose }: BookingModalProps) {
     setSelectedDate('');
     setSelectedSlotId('');
     setSelectedSlotTime('');
+    useDoctorStore.getState().clearAvailableSlots?.();
   };
 
   const handleBookAppointment = async () => {
@@ -78,27 +79,22 @@ export function BookingModal({ isOpen, onClose }: BookingModalProps) {
       return;
     }
 
-    if (!selectedSlotId) {
+    if (!selectedDoctorId || !selectedSlotId) {
       toast({
         title: 'Error',
-        description: 'Please select a time slot',
+        description: !selectedDoctorId ? 'Please select a doctor' : 'Please select a time slot',
         variant: 'destructive',
       });
       return;
     }
 
-    const user = useAuthStore.getState().user;
     const payload = {
       doctorId: selectedDoctorId,
-      timeSlotId: selectedSlotId,
-      patientId: user?.id,
       appointmentDate: selectedDate,
       appointmentTime: selectedSlotTime,
       symptoms,
       consultationType,
     };
-
-    console.log('Booking payload:', payload);
 
     try {
       await bookAppointment(payload);
@@ -110,10 +106,10 @@ export function BookingModal({ isOpen, onClose }: BookingModalProps) {
 
       onClose();
       router.push('/appointments');
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Failed to book appointment. Please try again.',
+        description: error?.response?.data?.message || 'Failed to book appointment. Please try again.',
         variant: 'destructive',
       });
     }

@@ -126,6 +126,13 @@ public class NotificationService {
     public Optional<NotificationDTO> markAsRead(Long id) {
         log.debug("Request to mark Notification as read : {}", id);
         return notificationRepository.findById(id).map(notification -> {
+            String currentLogin = SecurityUtils.getCurrentUserLogin().orElse(null);
+            boolean isAdmin = SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_ADMIN");
+            boolean isOwner = notification.getUser() != null &&
+                notification.getUser().getLogin().equalsIgnoreCase(currentLogin);
+            if (!isOwner && !isAdmin) {
+                throw new IllegalStateException("Unauthorized");
+            }
             notification.setIsRead(true);
             return notificationMapper.toDto(notification);
         });

@@ -68,7 +68,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const role = user?.role?.toUpperCase();
-    const hasAccess = role === 'ADMIN' || role === 'ROLE_ADMIN' || role === 'DOCTOR' || role === 'ROLE_DOCTOR';
+    const hasAccess = role === 'ADMIN' || role === 'ROLE_ADMIN';
 
     if (!isInitialized) return;
 
@@ -92,7 +92,7 @@ export default function AdminDashboard() {
   }, [isAuthenticated, user?.role, router]);
 
   const role = user?.role?.toUpperCase();
-  const hasAccess = role === 'ADMIN' || role === 'ROLE_ADMIN' || role === 'DOCTOR' || role === 'ROLE_DOCTOR';
+  const hasAccess = role === 'ADMIN' || role === 'ROLE_ADMIN';
 
   if (!isInitialized) {
     return (

@@ -101,8 +101,6 @@ export default function AppointmentDetailPage() {
   }
 
   try {
-    console.log('Cancelling appointment:', appointmentId, cancelReason);
-
     await apiService.cancelAppointment(appointmentId, cancelReason);
 
     toast({

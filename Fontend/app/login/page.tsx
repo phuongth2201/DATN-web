@@ -47,12 +47,8 @@ export default function LoginPage() {
     }
 
     try {
-      console.log('Attempting login with:', formData.email);
-      // Clear any existing session before logging in
       await useAuthStore.getState().logout();
-      
       await login(formData.email, formData.password);
-      console.log('Login successful');
 
       toast({
         title: 'Success',
@@ -60,7 +56,6 @@ export default function LoginPage() {
       });
       const currentUser = useAuthStore.getState().user;
       const role = currentUser?.role?.toUpperCase();
-      console.log('Redirecting based on role:', role);
       
       if (role === 'ADMIN' || role === 'ROLE_ADMIN') {
         router.push('/admin');

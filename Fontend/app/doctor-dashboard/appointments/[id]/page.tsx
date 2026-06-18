@@ -326,7 +326,7 @@ export default function DoctorAppointmentDetailPage() {
                       onClick={() => handleUpdateStatus('CONFIRMED')}
                     >
                       <Check className="mr-2" size={18} />
-                      Approve Appointment
+                      Confirm Appointment
                     </Button>
                     <Button
                       variant="outline"

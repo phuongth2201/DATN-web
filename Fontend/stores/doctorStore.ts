@@ -61,6 +61,7 @@ interface DoctorStore {
   getDoctorById: (id: string) => Promise<void>;
   getAvailableSlots: (doctorId: string, startDate: string, endDate: string) => Promise<void>;
   getDoctorReviews: (doctorId: string) => Promise<any>;
+  clearAvailableSlots: () => void;
   clearError: () => void;
 }
 
@@ -162,6 +163,10 @@ export const useDoctorStore = create<DoctorStore>((set) => ({
     } catch (error: any) {
       throw error;
     }
+  },
+
+  clearAvailableSlots: () => {
+    set({ availableSlots: [] });
   },
 
   clearError: () => {

@@ -54,11 +54,14 @@ public class AppointmentResource {
     @PostMapping("/appointments")
     public ResponseEntity<AppointmentDTO> createAppointment(@RequestBody CreateAppointmentRequest request) {
         User user = currentUser();
+        if (request.appointmentDate() == null || request.appointmentDate().isBefore(LocalDate.now())) {
+            throw new IllegalStateException("Appointment date must be today or in the future");
+        }
         Doctor doctor = doctorRepository.findById(request.doctorId()).orElseThrow(() -> new IllegalStateException("Doctor not found"));
         Hospital hospital = resolveHospital(request.hospitalId(), doctor);
         LocalTime requestedTime = LocalTime.parse(request.appointmentTime());
-        if (requestedTime.isBefore(LocalTime.of(8, 0)) || requestedTime.isAfter(LocalTime.of(17, 0))) {
-            throw new IllegalStateException("Appointments can only be booked between 08:00 and 17:00");
+        if (requestedTime.isBefore(LocalTime.of(8, 0)) || requestedTime.isAfter(LocalTime.of(16, 30))) {
+            throw new IllegalStateException("Appointments can only be booked between 08:00 and 16:30");
         }
         ensureSlotAvailable(doctor.getId(), request.appointmentDate(), requestedTime, null);
 
@@ -133,16 +136,19 @@ public class AppointmentResource {
     public ResponseEntity<AppointmentDTO> updateAppointment(@PathVariable Long id, @RequestBody UpdateAppointmentRequest request) {
         Appointment appointment = appointmentRepository.findById(id).orElseThrow(() -> new IllegalStateException("Appointment not found"));
         ensureCanAccess(appointment);
+        if (appointment.getStatus() == AppointmentStatus.CANCELLED || appointment.getStatus() == AppointmentStatus.COMPLETED) {
+            throw new IllegalStateException("Cannot reschedule a " + appointment.getStatus().name().toLowerCase() + " appointment");
+        }
         LocalTime requestedTime = LocalTime.parse(request.appointmentTime());
-        
+
         if (requestedTime.isBefore(LocalTime.of(8, 0)) || requestedTime.isAfter(LocalTime.of(17, 0))) {
             throw new IllegalStateException("Appointments can only be booked between 08:00 and 17:00");
         }
-        
+
         ensureSlotAvailable(appointment.getDoctor().getId(), request.appointmentDate(), requestedTime, appointment.getId());
         appointment.setAppointmentDate(request.appointmentDate());
         appointment.setAppointmentTime(requestedTime);
-        
+
         appointment.setStatus(AppointmentStatus.PENDING);
         appointment.setNotes(
             (appointment.getNotes() == null ? "" : appointment.getNotes() + "\n") +
@@ -174,6 +180,12 @@ public class AppointmentResource {
     ) {
         Appointment appointment = appointmentRepository.findById(id).orElseThrow(() -> new IllegalStateException("Appointment not found"));
         ensureCanAccess(appointment);
+        if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
+            throw new IllegalStateException("Appointment is already cancelled");
+        }
+        if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
+            throw new IllegalStateException("Cannot cancel a completed appointment");
+        }
         appointment.setStatus(AppointmentStatus.CANCELLED);
         if (request != null && request.reason() != null && !request.reason().isBlank()) {
             appointment.setNotes(
@@ -235,10 +247,11 @@ public class AppointmentResource {
     }
 
     private List<String> generateSlots(LocalDate date, Long doctorId) {
-        List<String> baseSlots = List.of("08:00", "08:30", "09:00", "09:30", "10:00", "14:00", "14:30", "15:00", "15:30", "16:00");
+        List<String> baseSlots = List.of("08:00", "08:30", "09:00", "09:30", "10:00", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30");
         List<String> booked = appointmentRepository
             .findByDoctorIdAndAppointmentDate(doctorId, date)
             .stream()
+            .filter(a -> a.getStatus() != AppointmentStatus.CANCELLED)
             .map(a -> a.getAppointmentTime().toString().substring(0, 5))
             .toList();
         return baseSlots.stream().filter(slot -> !booked.contains(slot)).toList();

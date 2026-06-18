@@ -6,6 +6,8 @@ import hospital.domain.TimeSlot;
 import hospital.repository.DoctorRepository;
 import hospital.repository.ScheduleRepository;
 import hospital.repository.TimeSlotRepository;
+import hospital.repository.UserRepository;
+import hospital.security.SecurityUtils;
 import hospital.service.dto.PageResponseDTO;
 import hospital.service.dto.PaginationDTO;
 import java.time.LocalDate;
@@ -20,6 +22,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -29,15 +32,18 @@ public class ScheduleResource {
     private final ScheduleRepository scheduleRepository;
     private final DoctorRepository doctorRepository;
     private final TimeSlotRepository timeSlotRepository;
+    private final UserRepository userRepository;
 
     public ScheduleResource(
         ScheduleRepository scheduleRepository,
         DoctorRepository doctorRepository,
-        TimeSlotRepository timeSlotRepository
+        TimeSlotRepository timeSlotRepository,
+        UserRepository userRepository
     ) {
         this.scheduleRepository = scheduleRepository;
         this.doctorRepository = doctorRepository;
         this.timeSlotRepository = timeSlotRepository;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/schedules")
@@ -87,7 +93,12 @@ public class ScheduleResource {
     }
 
     @PostMapping("/schedules")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_DOCTOR')")
     public ResponseEntity<Map<String, Object>> createSchedule(@RequestBody ScheduleRequest request) {
+        ensureCanManageSchedule(request.doctorId());
+        if (request.endTime() != null && request.startTime() != null && !request.endTime().isAfter(request.startTime())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "endTime must be after startTime"));
+        }
         Schedule schedule = new Schedule();
         applyRequest(schedule, request);
         scheduleRepository.save(schedule);
@@ -95,16 +106,25 @@ public class ScheduleResource {
     }
 
     @PutMapping("/schedules/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_DOCTOR')")
     public ResponseEntity<Map<String, Object>> updateSchedule(@PathVariable Long id, @RequestBody ScheduleRequest request) {
         Schedule schedule = scheduleRepository.findById(id).orElseThrow(() -> new IllegalStateException("Schedule not found"));
+        ensureCanManageSchedule(request.doctorId());
+        if (request.endTime() != null && request.startTime() != null && !request.endTime().isAfter(request.startTime())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "endTime must be after startTime"));
+        }
         applyRequest(schedule, request);
         scheduleRepository.save(schedule);
         return ResponseEntity.ok(toDetailMap(schedule));
     }
 
     @DeleteMapping("/schedules/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_DOCTOR')")
     public ResponseEntity<Map<String, Object>> deleteSchedule(@PathVariable Long id) {
         Schedule schedule = scheduleRepository.findById(id).orElseThrow(() -> new IllegalStateException("Schedule not found"));
+        if (!SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_ADMIN") && schedule.getDoctor() != null) {
+            ensureCanManageSchedule(schedule.getDoctor().getId());
+        }
         scheduleRepository.delete(schedule);
         return ResponseEntity.ok(Map.of("id", id, "message", "Schedule deleted successfully"));
     }
@@ -121,17 +141,38 @@ public class ScheduleResource {
     }
 
     @PostMapping("/schedules/{scheduleId}/time-slots")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_DOCTOR')")
     public ResponseEntity<Map<String, Object>> createTimeSlotForSchedule(
         @PathVariable Long scheduleId,
         @RequestBody TimeSlotRequest request
     ) {
         Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow(() -> new IllegalStateException("Schedule not found"));
+        if (schedule.getDoctor() != null) {
+            ensureCanManageSchedule(schedule.getDoctor().getId());
+        }
+        if (request.slotTime() != null && schedule.getStartTime() != null && schedule.getEndTime() != null) {
+            if (request.slotTime().isBefore(schedule.getStartTime()) || request.slotTime().isAfter(schedule.getEndTime())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "slotTime must be within schedule working hours"));
+            }
+        }
         TimeSlot timeSlot = new TimeSlot();
         timeSlot.setSchedule(schedule);
         timeSlot.setSlotTime(request.slotTime());
         timeSlot.setBooked(Optional.ofNullable(request.booked()).orElse(false));
         timeSlotRepository.save(timeSlot);
         return ResponseEntity.status(HttpStatus.CREATED).body(slotToMap(timeSlot));
+    }
+
+    private void ensureCanManageSchedule(Long doctorId) {
+        if (SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_ADMIN")) return;
+        String email = SecurityUtils.getCurrentUserLogin()
+            .flatMap(userRepository::findOneByLogin)
+            .map(u -> u.getEmail())
+            .orElseThrow(() -> new IllegalStateException("Unauthorized"));
+        Doctor currentDoctor = doctorRepository.findByEmail(email).orElse(null);
+        if (currentDoctor == null || !currentDoctor.getId().equals(doctorId)) {
+            throw new IllegalStateException("Unauthorized: cannot manage another doctor's schedule");
+        }
     }
 
     private void applyRequest(Schedule schedule, ScheduleRequest request) {
