@@ -108,10 +108,11 @@ export default function DoctorAppointmentDetailPage() {
     try {
       await apiService.createMedicalRecord({
         appointmentId: Number(currentAppointment?.id),
+        doctorId: Number(currentAppointment?.doctorId),
+        userId: Number(currentAppointment?.patientId || currentAppointment?.user?.id),
         diagnosis: recordForm.diagnosis,
         treatment: recordForm.treatment,
         notes: recordForm.notes,
-        userId: Number(currentAppointment?.patientId || currentAppointment?.user?.id)
       });
 
       // Mark appointment as completed after saving record

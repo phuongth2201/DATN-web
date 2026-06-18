@@ -344,7 +344,10 @@ export default function AppointmentDetailPage() {
                   <div>
                     <p className="text-sm text-gray-600">Consultation Type</p>
                     <p className="font-semibold">
-                      {currentAppointment.consultationType}
+                      {currentAppointment.consultationType ||
+                        (currentAppointment.notes?.startsWith('Consultation Type:')
+                          ? currentAppointment.notes.split('\n')[0].replace('Consultation Type:', '').trim()
+                          : 'General Consultation')}
                     </p>
                   </div>
                 </div>

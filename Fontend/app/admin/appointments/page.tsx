@@ -117,6 +117,7 @@ export default function AdminAppointmentsPage() {
       const recordRes = await apiService.createMedicalRecord({
         appointmentId: Number(selectedAppointment.id),
         doctorId: Number(selectedAppointment.doctorId),
+        userId: Number(selectedAppointment.patientId || selectedAppointment.userId),
         diagnosis: recordForm.diagnosis,
         treatment: recordForm.treatment,
         notes: recordForm.notes,
