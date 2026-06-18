@@ -77,7 +77,7 @@ public class DoctorResource {
         @RequestParam(defaultValue = "rating") String sortBy,
         @RequestParam(defaultValue = "desc") String sortOrder
     ) {
-        Specification<Doctor> spec = Specification.where(null);
+        Specification<Doctor> spec = Specification.where((root, query, cb) -> cb.or(cb.isTrue(root.get("active")), cb.isNull(root.get("active"))));
         if (specialty != null && !specialty.isBlank()) {
             spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("specialty").get("name")), specialty.toLowerCase()));
         }
@@ -188,7 +188,8 @@ public class DoctorResource {
         map.put("price", doctor.getPrice());
         map.put("rating", doctor.getRating());
         map.put("reviewCount", doctor.getReviewCount());
-        map.put("isAvailable", true);
+        map.put("active", doctor.getActive() == null ? true : doctor.getActive());
+        map.put("isAvailable", doctor.getActive() == null ? true : doctor.getActive());
         map.put("availableSlots", 12);
         return map;
     }
@@ -225,6 +226,8 @@ public class DoctorResource {
         map.put("price", doctor.getPrice());
         map.put("rating", doctor.getRating());
         map.put("reviewCount", doctor.getReviewCount());
+        map.put("active", doctor.getActive() == null ? true : doctor.getActive());
+        map.put("isAvailable", doctor.getActive() == null ? true : doctor.getActive());
         map.put("hospital", hospital);
         map.put("availableTime", availableTime);
         map.put("reviews", reviews);

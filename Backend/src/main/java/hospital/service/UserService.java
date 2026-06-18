@@ -2,8 +2,12 @@ package hospital.service;
 
 import hospital.config.Constants;
 import hospital.domain.Authority;
+import hospital.domain.Doctor;
 import hospital.domain.User;
 import hospital.repository.AuthorityRepository;
+import hospital.repository.DoctorRepository;
+import hospital.repository.HospitalRepository;
+import hospital.repository.SpecialtyRepository;
 import hospital.repository.UserRepository;
 import hospital.security.AuthoritiesConstants;
 import hospital.security.SecurityUtils;
@@ -39,17 +43,29 @@ public class UserService {
 
     private final AuthorityRepository authorityRepository;
 
+    private final DoctorRepository doctorRepository;
+
+    private final SpecialtyRepository specialtyRepository;
+
+    private final HospitalRepository hospitalRepository;
+
     private final CacheManager cacheManager;
 
     public UserService(
         UserRepository userRepository,
         PasswordEncoder passwordEncoder,
         AuthorityRepository authorityRepository,
+        DoctorRepository doctorRepository,
+        SpecialtyRepository specialtyRepository,
+        HospitalRepository hospitalRepository,
         CacheManager cacheManager
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authorityRepository = authorityRepository;
+        this.doctorRepository = doctorRepository;
+        this.specialtyRepository = specialtyRepository;
+        this.hospitalRepository = hospitalRepository;
         this.cacheManager = cacheManager;
     }
 
@@ -153,6 +169,7 @@ public class UserService {
         if (userDTO.getEmail() != null) {
             user.setEmail(userDTO.getEmail().toLowerCase());
         }
+        user.setPhoneNumber(userDTO.getPhoneNumber());
         user.setImageUrl(userDTO.getImageUrl());
         if (userDTO.getLangKey() == null) {
             user.setLangKey(Constants.DEFAULT_LANGUAGE); // default language
@@ -178,6 +195,7 @@ public class UserService {
             user.setAuthorities(authorities);
         }
         userRepository.save(user);
+        ensureDoctorProfileIfNeeded(user, null);
         this.clearUserCaches(user);
         LOG.debug("Created Information for User: {}", user);
         return user;
@@ -194,6 +212,7 @@ public class UserService {
             .filter(Optional::isPresent)
             .map(Optional::get)
             .map(user -> {
+                String previousEmail = user.getEmail();
                 this.clearUserCaches(user);
                 user.setLogin(userDTO.getLogin().toLowerCase());
                 user.setFirstName(userDTO.getFirstName());
@@ -201,6 +220,7 @@ public class UserService {
                 if (userDTO.getEmail() != null) {
                     user.setEmail(userDTO.getEmail().toLowerCase());
                 }
+                user.setPhoneNumber(userDTO.getPhoneNumber());
                 user.setImageUrl(userDTO.getImageUrl());
                 user.setActivated(userDTO.isActivated());
                 user.setLangKey(userDTO.getLangKey());
@@ -216,6 +236,7 @@ public class UserService {
                         .forEach(managedAuthorities::add);
                 }
                 userRepository.save(user);
+                ensureDoctorProfileIfNeeded(user, previousEmail);
                 this.clearUserCaches(user);
                 LOG.debug("Changed Information for User: {}", user);
                 return user;
@@ -318,6 +339,49 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<String> getAuthorities() {
         return authorityRepository.findAll().stream().map(Authority::getName).toList();
+    }
+
+    private void ensureDoctorProfileIfNeeded(User user, String previousEmail) {
+        boolean isDoctor = user.getAuthorities().stream().anyMatch(authority -> AuthoritiesConstants.DOCTOR.equals(authority.getName()));
+        if (!isDoctor || user.getEmail() == null || user.getEmail().isBlank()) {
+            return;
+        }
+        Optional<Doctor> doctorProfile = doctorRepository.findByEmail(user.getEmail());
+        if (doctorProfile.isEmpty() && previousEmail != null && !previousEmail.equalsIgnoreCase(user.getEmail())) {
+            doctorProfile = doctorRepository.findByEmail(previousEmail);
+        }
+        if (doctorProfile.isPresent()) {
+            Doctor doctor = doctorProfile.orElseThrow();
+            doctor.setFullName(fullName(user));
+            doctor.setEmail(user.getEmail().toLowerCase());
+            doctor.setPhoneNumber(user.getPhoneNumber());
+            if (doctor.getActive() == null) {
+                doctor.setActive(true);
+            }
+            doctorRepository.save(doctor);
+        } else {
+            Doctor doctor = new Doctor();
+            doctor.setFullName(fullName(user));
+            doctor.setEmail(user.getEmail().toLowerCase());
+            doctor.setPhoneNumber(user.getPhoneNumber());
+            doctor.setBio("");
+            doctor.setExperience(0);
+            doctor.setPrice(0L);
+            doctor.setRating(0.0);
+            doctor.setReviewCount(0);
+            doctor.setActive(true);
+            doctor.setSpecialty(
+                specialtyRepository.findAll().stream().findFirst().orElseThrow(() -> new IllegalStateException("No specialty found"))
+            );
+            doctor.setHospital(hospitalRepository.findAll().stream().findFirst().orElseThrow(() -> new IllegalStateException("No hospital found")));
+            doctorRepository.save(doctor);
+        }
+    }
+
+    private String fullName(User user) {
+        String name = ((user.getFirstName() == null ? "" : user.getFirstName()) + " " + (user.getLastName() == null ? "" : user.getLastName()))
+            .trim();
+        return name.isBlank() ? user.getLogin() : name;
     }
 
     private void clearUserCaches(User user) {

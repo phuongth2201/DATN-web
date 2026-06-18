@@ -50,6 +50,9 @@ public class Doctor implements Serializable {
     @Column(name = "review_count")
     private Integer reviewCount;
 
+    @Column(name = "active")
+    private Boolean active = true;
+
     @ManyToOne(optional = false)
     @NotNull
     @JsonIgnoreProperties(value = { "doctors" }, allowSetters = true)
@@ -193,6 +196,19 @@ public class Doctor implements Serializable {
 
     public void setReviewCount(Integer reviewCount) {
         this.reviewCount = reviewCount;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public Doctor active(Boolean active) {
+        this.active = active;
+        return this;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
     }
 
     public Specialty getSpecialty() {

@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import tech.jhipster.web.util.HeaderUtil;
 import tech.jhipster.web.util.ResponseUtil;
@@ -173,6 +174,7 @@ public class UserResource {
      */
     @GetMapping("/users")
     @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")
+    @Transactional(readOnly = true)
     public ResponseEntity<PageResponseDTO<Map<String, Object>>> getAllUsers(
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "20") int limit,
@@ -240,6 +242,7 @@ public class UserResource {
     private Map<String, Object> toSummary(User user) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", user.getId());
+        map.put("login", user.getLogin());
         map.put("email", user.getEmail());
         map.put(
             "fullName",
@@ -247,6 +250,7 @@ public class UserResource {
         );
         map.put("phoneNumber", user.getPhoneNumber());
         map.put("createdAt", user.getCreatedDate());
+        map.put("authorities", user.getAuthorities().stream().map(authority -> authority.getName()).toList());
         map.put(
             "appointments",
             appointmentRepository.findAll().stream().filter(a -> a.getUser() != null && a.getUser().getId().equals(user.getId())).count()

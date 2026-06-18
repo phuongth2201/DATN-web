@@ -47,7 +47,7 @@ export default function AdminAppointmentsPage() {
       else if (response?.data?.appointments) apps = response.data.appointments;
       else if (response?.appointments) apps = response.appointments;
       
-      setAppointments(apps);
+      setAppointments(apps.map((apt) => ({ ...apt, patientName: apt.patientName || apt.userName })));
     } catch (error) {
       console.error('Failed to fetch appointments:', error);
       toast({
