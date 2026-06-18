@@ -323,6 +323,7 @@ public class AdminResource {
         map.put("appointmentTime", appointment.getAppointmentTime());
         map.put("status", appointment.getStatus() != null ? appointment.getStatus().name() : null);
         map.put("price", appointment.getPrice());
+        map.put("paymentStatus", appointment.getPaymentStatus());
         return map;
     }
 

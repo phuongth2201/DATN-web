@@ -141,8 +141,8 @@ public class AppointmentResource {
         }
         LocalTime requestedTime = LocalTime.parse(request.appointmentTime());
 
-        if (requestedTime.isBefore(LocalTime.of(8, 0)) || requestedTime.isAfter(LocalTime.of(17, 0))) {
-            throw new IllegalStateException("Appointments can only be booked between 08:00 and 17:00");
+        if (requestedTime.isBefore(LocalTime.of(8, 0)) || requestedTime.isAfter(LocalTime.of(16, 30))) {
+            throw new IllegalStateException("Appointments can only be booked between 08:00 and 16:30");
         }
 
         ensureSlotAvailable(appointment.getDoctor().getId(), request.appointmentDate(), requestedTime, appointment.getId());
