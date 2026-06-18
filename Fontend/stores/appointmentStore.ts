@@ -6,6 +6,7 @@ export interface Appointment {
   patientId: string;
   patientName?: string;
   doctorId: string;
+  doctorName?: string;
   appointmentDate: string;
   appointmentTime: string;
   status: string;
@@ -14,6 +15,8 @@ export interface Appointment {
   consultationType: string;
   paymentStatus?: string;
   createdAt: string;
+  user?: any;
+  price?: number;
 }
 
 interface AppointmentStore {
@@ -44,7 +47,7 @@ export const useAppointmentStore = create<AppointmentStore>((set) => ({
   fetchAppointments: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await apiService.getUserAppointments({ sortBy: 'date', sortOrder: 'desc' });
+      const response = await apiService.getUserAppointments({ sortBy: 'created', sortOrder: 'desc' });
       let apps = [];
       if (Array.isArray(response)) apps = response;
       else if (Array.isArray(response?.data)) apps = response.data;

@@ -5,6 +5,7 @@ export interface Doctor {
   id: string;
   fullName: string;
   specialization: string;
+  specialty?: string;
   qualification: string;
   yearsOfExperience: number;
   rating?: number;
@@ -40,6 +41,10 @@ export interface TimeSlot {
 export interface DaySchedule {
   date: string;
   slots: any[];
+  id?: string;
+  startTime?: string;
+  endTime?: string;
+  isAvailable?: boolean;
 }
 
 interface DoctorStore {
@@ -59,7 +64,7 @@ interface DoctorStore {
     limit?: number;
   }) => Promise<void>;
   getDoctorById: (id: string) => Promise<void>;
-  getAvailableSlots: (doctorId: string, startDate: string, endDate: string) => Promise<void>;
+  getAvailableSlots: (doctorId: string, startDate: string, endDate?: string) => Promise<void>;
   getDoctorReviews: (doctorId: string) => Promise<any>;
   clearAvailableSlots: () => void;
   clearError: () => void;
@@ -128,11 +133,11 @@ export const useDoctorStore = create<DoctorStore>((set) => ({
     }
   },
 
-  getAvailableSlots: async (doctorId, startDate, endDate) => {
+  getAvailableSlots: async (doctorId, startDate, _endDate?) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await apiService.getDoctorSlots(doctorId, startDate, endDate);
-      
+      const response: any = await apiService.getDoctorSlots(doctorId, startDate);
+
       let schedule = [];
       if (response?.availableSlots) {
         schedule = response.availableSlots;

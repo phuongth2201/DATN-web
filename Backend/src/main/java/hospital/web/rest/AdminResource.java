@@ -21,7 +21,6 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -114,7 +113,9 @@ public class AdminResource {
         @RequestParam(defaultValue = "20") int limit,
         @RequestParam(required = false) String search
     ) {
-        List<Doctor> doctors = doctorRepository.findAll();
+        List<Doctor> doctors = doctorRepository.findAll().stream()
+            .sorted((a, b) -> Long.compare(b.getId() == null ? 0 : b.getId(), a.getId() == null ? 0 : a.getId()))
+            .collect(java.util.stream.Collectors.toList());
         if (search != null && !search.isBlank()) {
             String like = search.toLowerCase();
             doctors = doctors
@@ -165,23 +166,65 @@ public class AdminResource {
     public ResponseEntity<Map<String, Object>> updateDoctorStatus(@PathVariable Long id, @RequestBody DoctorStatusRequest request) {
         Doctor doctor = doctorRepository.findById(id).orElseThrow(() -> new IllegalStateException("Doctor not found"));
         Boolean active = request.isActive() != null ? request.isActive() : request.active();
-        doctor.setActive(active != null ? active : true);
+        boolean newActive = active != null ? active : true;
+        doctor.setActive(newActive);
         Doctor savedDoctor = doctorRepository.save(doctor);
+        // Sync User account activated status with doctor active status
+        userRepository.findOneByEmailIgnoreCase(doctor.getEmail()).ifPresent(doctorUser -> {
+            doctorUser.setActivated(newActive);
+            userRepository.save(doctorUser);
+        });
         return ResponseEntity.ok(Map.of("message", "Doctor status updated successfully", "doctor", doctorDetail(savedDoctor)));
     }
 
     @DeleteMapping("/doctors/{id}")
     public ResponseEntity<Map<String, Object>> deleteDoctor(@PathVariable Long id) {
+        // Soft-delete: delegate to deactivate which cancels appointments and notifies patients
+        return deactivateDoctor(id);
+    }
+
+    @PostMapping("/doctors/{id}/deactivate")
+    public ResponseEntity<Map<String, Object>> deactivateDoctor(@PathVariable Long id) {
         Doctor doctor = doctorRepository.findById(id).orElseThrow(() -> new IllegalStateException("Doctor not found"));
-        try {
-            doctorRepository.delete(doctor);
-            doctorRepository.flush();
-            return ResponseEntity.ok(Map.of("id", id, "message", "Doctor deleted successfully"));
-        } catch (DataIntegrityViolationException ex) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                Map.of("error", "Cannot delete doctor because there is related data", "code", "DOCTOR_DELETE_CONFLICT")
+        doctor.setActive(false);
+        doctorRepository.save(doctor);
+
+        // Sync: also deactivate the corresponding User account
+        userRepository.findOneByEmailIgnoreCase(doctor.getEmail()).ifPresent(doctorUser -> {
+            doctorUser.setActivated(false);
+            userRepository.save(doctorUser);
+        });
+
+        List<Appointment> activeAppointments = appointmentRepository.findByDoctorId(doctor.getId())
+            .stream()
+            .filter(a -> a.getStatus() == AppointmentStatus.PENDING || a.getStatus() == AppointmentStatus.CONFIRMED)
+            .toList();
+
+        for (Appointment appointment : activeAppointments) {
+            appointment.setStatus(AppointmentStatus.CANCELLED);
+            appointment.setNotes(
+                (appointment.getNotes() == null ? "" : appointment.getNotes() + "\n") +
+                "[SYSTEM]: Doctor is no longer available."
             );
+            appointmentRepository.save(appointment);
+
+            if (appointment.getUser() != null) {
+                notificationService.createNotification(
+                    appointment.getUser().getId(),
+                    "Doctor Unavailable",
+                    "Your appointment with Dr. " + doctor.getFullName() +
+                    " has been cancelled because the doctor is currently unavailable. " +
+                    "Please book with another doctor — there is no extra charge and you may find an even better match for your needs.",
+                    "DOCTOR_UNAVAILABLE",
+                    appointment.getId()
+                );
+            }
         }
+
+        return ResponseEntity.ok(Map.of(
+            "message", "Doctor deactivated successfully",
+            "cancelledAppointments", activeAppointments.size()
+        ));
     }
 
     @GetMapping("/appointments")

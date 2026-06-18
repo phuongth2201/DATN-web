@@ -16,6 +16,8 @@ import {
   CheckCircle,
   Save,
   Trash2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { apiService } from "@/services/api";
 import { useToast } from "@/components/ui/use-toast";
@@ -50,6 +52,7 @@ export default function AdminUsersPage() {
     searchParams.get("search") || "",
   );
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -57,6 +60,7 @@ export default function AdminUsersPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Error Alert State
@@ -76,6 +80,7 @@ export default function AdminUsersPage() {
       else if (response?.users) usersList = response.users;
 
       setUsers(usersList);
+      if (response?.pagination?.totalPages) setTotalPages(response.pagination.totalPages);
     } catch (error) {
       console.error("Failed to fetch users:", error);
       toast({
@@ -243,8 +248,8 @@ export default function AdminUsersPage() {
     try {
       await apiService.deleteUser(identifier);
       toast({
-        title: "User Deleted",
-        description: "The user account has been removed.",
+        title: "User Deactivated",
+        description: "The user account has been deactivated successfully.",
       });
       fetchUsers();
     } catch (error: any) {
@@ -335,13 +340,13 @@ export default function AdminUsersPage() {
               {filteredUsers.map((u) => (
                 <Card
                   key={u.id || u.email}
-                  className="hover:shadow-md transition-shadow"
+                  className={`hover:shadow-md transition-shadow ${u.activated === false ? "opacity-60 bg-gray-50" : ""}`}
                 >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-4 flex-1">
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                          <UserIcon size={24} className="text-blue-600" />
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${u.activated === false ? "bg-gray-200" : "bg-blue-100"}`}>
+                          <UserIcon size={24} className={u.activated === false ? "text-gray-400" : "text-blue-600"} />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
@@ -352,8 +357,17 @@ export default function AdminUsersPage() {
                               <Shield
                                 size={16}
                                 className="text-amber-500"
-                                title="Admin"
+                                aria-label="Admin"
                               />
+                            )}
+                            {u.activated === false ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                                Inactive
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                                Active
+                              </span>
                             )}
                           </div>
                           <div className="flex items-center gap-4 mt-2 text-gray-600 text-sm">
@@ -421,8 +435,8 @@ export default function AdminUsersPage() {
               <span className="text-gray-600 font-medium">Page {page}</span>
               <Button
                 variant="outline"
-                onClick={() => setPage(page + 1)}
-                disabled={users.length < 10}
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
+                disabled={page >= totalPages}
               >
                 Next
               </Button>
@@ -567,16 +581,26 @@ export default function AdminUsersPage() {
                   <Label htmlFor="password" className="text-right">
                     Password{isCreateMode && <RequiredMark />}
                   </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={selectedUser.password || ""}
-                    onChange={(e) =>
-                      updateSelectedUserField("password", e.target.value)
-                    }
-                    className="col-span-3 font-mono"
-                    placeholder="Min 8 chars, 1 uppercase, 1 number"
-                  />
+                  <div className="col-span-3 relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={selectedUser.password || ""}
+                      onChange={(e) =>
+                        updateSelectedUserField("password", e.target.value)
+                      }
+                      className="font-mono pr-10 w-full"
+                      placeholder="Min 8 chars, 1 uppercase, 1 number"
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

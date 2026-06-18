@@ -6,7 +6,6 @@ import hospital.security.*;
 import hospital.web.filter.RateLimitingFilter;
 import hospital.web.filter.SpaWebFilter;
 import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;

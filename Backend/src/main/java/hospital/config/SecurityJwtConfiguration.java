@@ -5,6 +5,7 @@ import static hospital.security.SecurityUtils.JWT_ALGORITHM;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.util.Base64;
 import hospital.management.SecurityMetersService;
+import hospital.repository.UserRepository;
 import hospital.security.TokenBlacklistService;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -28,14 +29,15 @@ public class SecurityJwtConfiguration {
     private String jwtKey;
 
     @Bean
-    public JwtDecoder jwtDecoder(SecurityMetersService metersService, TokenBlacklistService tokenBlacklistService) {
+    public JwtDecoder jwtDecoder(SecurityMetersService metersService, TokenBlacklistService tokenBlacklistService, UserRepository userRepository) {
         NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(getSecretKey()).macAlgorithm(JWT_ALGORITHM).build();
         return token -> {
             if (tokenBlacklistService.isRevoked(token)) {
                 throw new JwtException("Jwt revoked");
             }
+            org.springframework.security.oauth2.jwt.Jwt decoded;
             try {
-                return jwtDecoder.decode(token);
+                decoded = jwtDecoder.decode(token);
             } catch (Exception e) {
                 if (e.getMessage().contains("Invalid signature")) {
                     metersService.trackTokenInvalidSignature();
@@ -52,6 +54,17 @@ public class SecurityJwtConfiguration {
                 }
                 throw e;
             }
+            // Reject tokens for deactivated users — covers all requests, not just login
+            String username = decoded.getSubject();
+            if (username != null) {
+                boolean isActive = userRepository.findOneByLogin(username)
+                    .map(hospital.domain.User::isActivated)
+                    .orElse(true);
+                if (!isActive) {
+                    throw new JwtException("User account is deactivated");
+                }
+            }
+            return decoded;
         };
     }
 

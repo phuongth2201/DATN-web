@@ -233,6 +233,10 @@ class ApiService {
     return (await this.client.get(`/api/doctors/me`)).data;
   }
 
+  async createDoctorOnboarding(payload: any) {
+    return (await this.client.post('/api/doctors/onboarding', payload)).data;
+  }
+
   async getDoctorSlots(doctorId: string, params: any) {
     // Handle both object params { date: '...' } and direct string '...'
     const date = typeof params === 'string' ? params : params?.date;
@@ -323,6 +327,10 @@ class ApiService {
     return (await this.client.get('/api/appointments', { params })).data;
   }
 
+  async rebookAppointment(appointmentId: number | string, doctorId: number | string) {
+    return (await this.client.put(`/api/appointments/${appointmentId}/rebook`, { doctorId })).data;
+  }
+
   async getAllAppointments(page = 1, limit = 10, status = '') {
     try {
       return (await this.client.get('/api/admin/appointments', {
@@ -346,7 +354,7 @@ class ApiService {
 
   async getAllUsers(page = 1, limit = 20) {
     const res = (await this.client.get('/api/admin/users', {
-      params: { page: page - 1, limit }
+      params: { page, limit }
     })).data;
     
     // Support both direct array and paginated object
@@ -399,15 +407,13 @@ class ApiService {
     return (await this.client.delete(`/api/admin/users/${identifier}`)).data;
   }
 
-  async getAllDoctors(page = 1, limit = 20) {
+  async getAllDoctors(page = 1, limit = 20, search = '') {
+    const params: any = { page, limit };
+    if (search) params.search = search;
     try {
-      return (await this.client.get('/api/admin/doctors', {
-        params: { page: page - 1, limit }
-      })).data;
+      return (await this.client.get('/api/admin/doctors', { params })).data;
     } catch (e) {
-      return (await this.client.get('/api/doctors', {
-        params: { page: page - 1, limit }
-      })).data;
+      return (await this.client.get('/api/doctors', { params })).data;
     }
   }
 
@@ -471,6 +477,10 @@ class ApiService {
 
   async deleteDoctor(id: string | number) {
     return (await this.client.delete(`/api/admin/doctors/${id}`)).data;
+  }
+
+  async deactivateDoctorWithNotify(id: string | number) {
+    return (await this.client.post(`/api/admin/doctors/${id}/deactivate`)).data;
   }
 
   async getAppointmentById(id: string) {
@@ -605,8 +615,8 @@ class ApiService {
       };
 
       const getRevenueForMonth = (m: number, y: number) => appointments
-        .filter(a => ((a.status || '').toUpperCase() === 'COMPLETED' || (a.status || '').toUpperCase() === 'SUCCESS') && isMatch(a.appointmentDate || a.createdAt, m, y))
-        .reduce((sum, a) => sum + (Number(a.price) || Number(a.doctorPrice) || 50), 0);
+        .filter((a: any) => ((a.status || '').toUpperCase() === 'COMPLETED' || (a.status || '').toUpperCase() === 'SUCCESS') && isMatch(a.appointmentDate || a.createdAt, m, y))
+        .reduce((sum: number, a: any) => sum + (Number(a.price) || Number(a.doctorPrice) || 50), 0);
 
       const curRevVal = getRevenueForMonth(curMonth, curYear);
       const prevRevVal = getRevenueForMonth(prevMonth, prevYear);

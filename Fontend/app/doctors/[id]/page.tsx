@@ -297,7 +297,7 @@ export default function DoctorDetailPage() {
                         </p>
                       ) : (
                         <div className="grid grid-cols-3 gap-2">
-                          {availableSlots.map((slot) => (
+                          {availableSlots.map((slot: any) => (
                             <button
                               key={slot.id}
                               onClick={() => {

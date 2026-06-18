@@ -7,11 +7,15 @@ import { useAppointmentStore } from '@/stores/appointmentStore';
 import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar, Clock, User, AlertCircle, CheckCircle, XCircle, CreditCard, ArrowUpDown } from 'lucide-react';
+import { Calendar, Clock, User, AlertCircle, CheckCircle, XCircle, CreditCard, ArrowUpDown, AlertTriangle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { PaymentModal } from '@/components/PaymentModal';
 import { useState } from 'react';
+
+// Appointments cancelled because their doctor was deleted — handled separately
+const isSystemCancelled = (apt: any) =>
+  apt.status === 'CANCELLED' && typeof apt.notes === 'string' && apt.notes.includes('[SYSTEM]: Doctor is no longer available');
 
 export default function AppointmentsPage() {
   const router = useRouter();
@@ -72,15 +76,15 @@ export default function AppointmentsPage() {
 
   const STATUS_ORDER: Record<string, number> = { CONFIRMED: 0, PENDING: 1, COMPLETED: 2, CANCELLED: 3 };
 
-  const sortedAppointments = [...appointments].sort((a, b) => {
-    // Sort 2 (status) takes priority when enabled
+  // Separate system-cancelled (doctor deleted) from normal appointments
+  const needsAttention = appointments.filter(isSystemCancelled);
+  const normalAppointments = appointments.filter(apt => !isSystemCancelled(apt));
+
+  const sortedAppointments = [...normalAppointments].sort((a, b) => {
     if (sortByStatus) {
       const statusDiff = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
       if (statusDiff !== 0) return statusDiff;
-      // Same status: fall through to sort 1 logic below
     }
-
-    // Sort 1: by created date or appointment date
     if (sortBy === 'created') {
       return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
     }
@@ -113,8 +117,45 @@ export default function AppointmentsPage() {
             </Link>
           </div>
 
+          {/* Doctor Unavailable — Needs Attention */}
+          {!isLoading && needsAttention.length > 0 && (
+            <div className="mb-8 space-y-3">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+                <h2 className="text-base font-bold text-amber-800">Appointments Requiring Action</h2>
+                <span className="ml-1 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">
+                  {needsAttention.length}
+                </span>
+              </div>
+              {needsAttention.map((apt) => (
+                <div
+                  key={apt.id}
+                  className="rounded-2xl border border-amber-200 bg-amber-50 p-5 flex flex-col md:flex-row md:items-center gap-4"
+                >
+                  <div className="flex-1 space-y-1">
+                    <p className="font-semibold text-amber-900">
+                      Your appointment with <span className="underline">{apt.doctorName}</span> was cancelled because the doctor is no longer available.
+                    </p>
+                    <p className="text-sm text-amber-700">
+                      {new Date(apt.appointmentDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                      {' · '}{apt.appointmentTime}
+                    </p>
+                    <p className="text-xs text-amber-600 font-medium">No extra charge — same slot, new doctor</p>
+                  </div>
+                  <Button
+                    onClick={() => router.push(`/doctors?rebookId=${apt.id}`)}
+                    className="bg-amber-600 hover:bg-amber-700 text-white whitespace-nowrap shrink-0"
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2" />
+                    Change Doctor
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Filter Section */}
-          {!isLoading && appointments.length > 0 && (
+          {!isLoading && normalAppointments.length > 0 && (
             <div className="flex flex-col md:flex-row md:items-center gap-4 mb-8">
               <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm w-fit">
                 <AlertCircle className="w-4 h-4 text-slate-500 flex-shrink-0" />
@@ -123,11 +164,11 @@ export default function AppointmentsPage() {
                   onChange={(e) => setFilterStatus(e.target.value)}
                   className="bg-transparent border-none outline-none text-sm text-slate-700 font-medium cursor-pointer"
                 >
-                  <option value="ALL">All Appointments ({appointments.length})</option>
-                  <option value="PENDING">Pending ({appointments.filter(a => a.status === 'PENDING').length})</option>
-                  <option value="CONFIRMED">Confirmed ({appointments.filter(a => a.status === 'CONFIRMED').length})</option>
-                  <option value="COMPLETED">Completed ({appointments.filter(a => a.status === 'COMPLETED').length})</option>
-                  <option value="CANCELLED">Cancelled ({appointments.filter(a => a.status === 'CANCELLED').length})</option>
+                  <option value="ALL">All Appointments ({normalAppointments.length})</option>
+                  <option value="PENDING">Pending ({normalAppointments.filter(a => a.status === 'PENDING').length})</option>
+                  <option value="CONFIRMED">Confirmed ({normalAppointments.filter(a => a.status === 'CONFIRMED').length})</option>
+                  <option value="COMPLETED">Completed ({normalAppointments.filter(a => a.status === 'COMPLETED').length})</option>
+                  <option value="CANCELLED">Cancelled ({normalAppointments.filter(a => a.status === 'CANCELLED').length})</option>
                 </select>
               </div>
               
@@ -183,7 +224,7 @@ export default function AppointmentsPage() {
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               <p className="text-foreground/60 mt-4 text-lg">Loading your appointments...</p>
             </div>
-          ) : appointments.length === 0 ? (
+          ) : normalAppointments.length === 0 && needsAttention.length === 0 ? (
             <Card className="border-0 shadow-lg bg-muted/30">
               <CardContent className="p-16 text-center">
                 <Calendar className="w-20 h-20 mx-auto text-muted-foreground mb-6 opacity-40" />
@@ -198,7 +239,7 @@ export default function AppointmentsPage() {
                 </Link>
               </CardContent>
             </Card>
-          ) : filteredAppointments.length === 0 ? (
+          ) : normalAppointments.length > 0 && filteredAppointments.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-3xl shadow-sm border border-slate-100">
               <h3 className="text-xl font-bold text-slate-700 mb-2">No appointments found</h3>
               <p className="text-slate-500">There are no appointments matching your filters.</p>

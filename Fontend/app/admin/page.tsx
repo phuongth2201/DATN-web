@@ -80,7 +80,7 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
       try {
         const response = await apiService.getAdminDashboard();
-        setStats(response?.data || response);
+        setStats((response as any)?.data || response);
       } catch (error) {
         console.error('Failed to fetch admin stats:', error);
       } finally {

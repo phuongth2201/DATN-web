@@ -11,7 +11,6 @@ import hospital.repository.NotificationRepository;
 import hospital.repository.UserRepository;
 import hospital.service.dto.NotificationDTO;
 import hospital.service.mapper.NotificationMapper;
-import java.util.Collections;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -84,7 +83,7 @@ class NotificationServiceTest {
     void markAsRead_byOwner_succeeds() {
         loginAs("owner", "ROLE_PATIENT");
         when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
-        when(notificationMapper.toDto(any())).thenReturn(new NotificationDTO());
+        when(notificationMapper.toDto(any(Notification.class))).thenReturn(new NotificationDTO());
 
         Optional<NotificationDTO> result = notificationService.markAsRead(1L);
 
@@ -96,7 +95,7 @@ class NotificationServiceTest {
     void markAsRead_byAdmin_succeeds() {
         loginAs("admin", "ROLE_ADMIN");
         when(notificationRepository.findById(1L)).thenReturn(Optional.of(notification));
-        when(notificationMapper.toDto(any())).thenReturn(new NotificationDTO());
+        when(notificationMapper.toDto(any(Notification.class))).thenReturn(new NotificationDTO());
 
         Optional<NotificationDTO> result = notificationService.markAsRead(1L);
 

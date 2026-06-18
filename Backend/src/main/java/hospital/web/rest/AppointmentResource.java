@@ -223,6 +223,47 @@ public class AppointmentResource {
         return ResponseEntity.ok(dto);
     }
 
+    @PutMapping("/appointments/{id}/rebook")
+    public ResponseEntity<AppointmentDTO> rebookAppointment(
+        @PathVariable Long id,
+        @RequestBody Map<String, Object> body
+    ) {
+        Appointment appointment = appointmentRepository.findById(id)
+            .orElseThrow(() -> new IllegalStateException("Appointment not found"));
+        if (appointment.getStatus() != AppointmentStatus.CANCELLED) {
+            throw new IllegalStateException("Only cancelled appointments can be rebooked");
+        }
+        ensureCanAccess(appointment);
+        Long newDoctorId = ((Number) body.get("doctorId")).longValue();
+        Doctor newDoctor = doctorRepository.findById(newDoctorId)
+            .orElseThrow(() -> new IllegalStateException("Doctor not found"));
+        if (!Boolean.TRUE.equals(newDoctor.getActive())) {
+            throw new IllegalStateException("Selected doctor is not available");
+        }
+        appointment.setDoctor(newDoctor);
+        appointment.setStatus(AppointmentStatus.PENDING);
+        // Clear system cancellation note
+        String notes = appointment.getNotes();
+        if (notes != null) {
+            notes = notes.replaceAll("(?m)\\[SYSTEM\\]:.*?(\\n|$)", "").strip();
+            appointment.setNotes(notes.isEmpty() ? null : notes);
+        }
+        appointmentRepository.save(appointment);
+        // Notify the new doctor
+        userRepository.findOneByEmailIgnoreCase(newDoctor.getEmail()).ifPresent(doctorUser ->
+            notificationService.createNotification(
+                doctorUser.getId(),
+                "New Appointment",
+                "A patient has rebooked an appointment on " + appointment.getAppointmentDate() + " at " + appointment.getAppointmentTime() + ".",
+                "APPOINTMENT_BOOKED",
+                appointment.getId()
+            )
+        );
+        AppointmentDTO dto = toDto(appointment);
+        dto.setMessage("Appointment rebooked successfully");
+        return ResponseEntity.ok(dto);
+    }
+
     @GetMapping("/appointments/{doctorId}/available-slots")
     public ResponseEntity<AppointmentDTO> availableSlots(
         @PathVariable Long doctorId,
@@ -268,6 +309,10 @@ public class AppointmentResource {
         java.util.Comparator<Appointment> comparator;
         if ("status".equalsIgnoreCase(sortBy)) {
             comparator = java.util.Comparator.comparing(a -> a.getStatus() == null ? "" : a.getStatus().name());
+        } else if ("created".equalsIgnoreCase(sortBy)) {
+            comparator = java.util.Comparator.comparing(
+                (Appointment a) -> a.getCreatedAt() == null ? java.time.Instant.EPOCH : a.getCreatedAt()
+            );
         } else {
             comparator = java.util.Comparator.comparing(Appointment::getAppointmentDate).thenComparing(Appointment::getAppointmentTime);
         }

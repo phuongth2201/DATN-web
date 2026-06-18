@@ -22,6 +22,7 @@ export default function AdminAppointmentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Medical Record Modal State
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
@@ -48,6 +49,7 @@ export default function AdminAppointmentsPage() {
       else if (response?.appointments) apps = response.appointments;
       
       setAppointments(apps.map((apt) => ({ ...apt, patientName: apt.patientName || apt.userName })));
+      if (response?.pagination?.totalPages) setTotalPages(response.pagination.totalPages);
     } catch (error) {
       console.error('Failed to fetch appointments:', error);
       toast({
@@ -348,8 +350,8 @@ export default function AdminAppointmentsPage() {
               </div>
               <Button
                 variant="ghost"
-                onClick={() => setPage(page + 1)}
-                disabled={appointments.length < 10}
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
+                disabled={page >= totalPages}
                 className="font-bold"
               >
                 Next Page

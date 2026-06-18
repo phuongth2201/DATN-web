@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Eye, EyeOff } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -22,6 +22,8 @@ export default function RegisterPage() {
     phoneNumber: '',
   });
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -196,18 +198,28 @@ export default function RegisterPage() {
                   <label htmlFor="password" className="block text-sm font-bold text-slate-700 ml-1">
                     Password <span className="text-slate-400 font-normal text-xs">(8+ chars, A-z, 0-9, symbol)</span>
                   </label>
-                  <Input
-                    type="password"
-                    id="password"
-                    name="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                    className={`bg-slate-50/50 border-slate-100 focus:border-primary h-12 rounded-xl transition-all ${
-                      fieldErrors.password ? 'border-rose-300 bg-rose-50/30 focus:border-rose-400' : ''
-                    }`}
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      id="password"
+                      name="password"
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      className={`bg-slate-50/50 border-slate-100 focus:border-primary h-12 rounded-xl transition-all pr-10 ${
+                        fieldErrors.password ? 'border-rose-300 bg-rose-50/30 focus:border-rose-400' : ''
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                   {fieldErrors.password && (
                     <p className="text-xs font-bold text-rose-500 ml-1 mt-1 animate-in fade-in slide-in-from-top-1">
                       {fieldErrors.password}
@@ -218,18 +230,28 @@ export default function RegisterPage() {
                   <label htmlFor="confirmPassword" className="block text-sm font-bold text-slate-700 ml-1">
                     Confirm
                   </label>
-                  <Input
-                    type="password"
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    placeholder="••••••••"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                    className={`bg-slate-50/50 border-slate-100 focus:border-primary h-12 rounded-xl transition-all ${
-                      fieldErrors.confirmPassword ? 'border-rose-300 bg-rose-50/30 focus:border-rose-400' : ''
-                    }`}
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showConfirm ? 'text' : 'password'}
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      placeholder="••••••••"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      className={`bg-slate-50/50 border-slate-100 focus:border-primary h-12 rounded-xl transition-all pr-10 ${
+                        fieldErrors.confirmPassword ? 'border-rose-300 bg-rose-50/30 focus:border-rose-400' : ''
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowConfirm(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                   {fieldErrors.confirmPassword && (
                     <p className="text-xs font-bold text-rose-500 ml-1 mt-1 animate-in fade-in slide-in-from-top-1">
                       {fieldErrors.confirmPassword}

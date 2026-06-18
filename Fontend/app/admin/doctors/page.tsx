@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Star, Edit, Eye, UserCheck, UserX, Save, X } from 'lucide-react';
+import { Star, Edit, Eye, UserX, Save } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -43,8 +43,10 @@ export default function AdminDoctorsPage() {
   const { user, isAuthenticated, isInitialized } = useAuthStore();
   const { toast } = useToast();
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [specialties, setSpecialties] = useState<any[]>([]);
   const [hospitals, setHospitals] = useState<any[]>([]);
@@ -52,7 +54,6 @@ export default function AdminDoctorsPage() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-  const [isConflictAlertOpen, setIsConflictAlertOpen] = useState(false);
   const [doctorToDelete, setDoctorToDelete] = useState<any>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -87,7 +88,7 @@ export default function AdminDoctorsPage() {
     const fetchInitialData = async () => {
       try {
         const [docsRes, specsRes, hospsRes] = await Promise.all([
-          apiService.getAllDoctors(page, 10),
+          apiService.getAllDoctors(page, 10, appliedSearch),
           apiService.getSpecialties(),
           apiService.getHospitals()
         ]);
@@ -100,6 +101,7 @@ export default function AdminDoctorsPage() {
         
         const mappedDocs = docsList.map(mapDoctorData);
         setDoctors(mappedDocs);
+        if (docsRes?.pagination) setTotalPages(docsRes.pagination.totalPages || 1);
         setSpecialties(Array.isArray(specsRes.data) ? specsRes.data : specsRes);
         setHospitals(Array.isArray(hospsRes.data) ? hospsRes.data : hospsRes);
 
@@ -121,7 +123,7 @@ export default function AdminDoctorsPage() {
     };
 
     fetchInitialData();
-  }, [isAuthenticated, user?.role, router, page]);
+  }, [isAuthenticated, user?.role, router, page, appliedSearch]);
 
 
   const handleEdit = async (doctor: any) => {
@@ -166,76 +168,36 @@ export default function AdminDoctorsPage() {
     }
   };
 
-  const handleStatusUpdate = async (id: string, currentStatus: boolean) => {
-    try {
-      const fullDetail = await apiService.getDoctorById(id);
-      const doctorData = fullDetail?.data || fullDetail;
-      
-      // Find specialtyId by name if it's missing (since detail API returns specialty as string)
-      let sId = doctorData.specialtyId;
-      if (!sId && doctorData.specialty) {
-        const specName = typeof doctorData.specialty === 'object' ? doctorData.specialty.name : doctorData.specialty;
-        const foundSpec = specialties.find(s => s.name === specName || s.vietnamName === specName);
-        if (foundSpec) sId = foundSpec.id;
-      }
-
-      const response = await apiService.updateDoctor(id, { 
-        ...doctorData,
-        specialtyId: sId,
-        active: !currentStatus 
-      });
-      
-      // If we are deactivating, remove from the current list as requested
-      if (currentStatus) { // currentStatus is true, so we are turning it to false (Deactivating)
-        setDoctors(doctors.filter(d => d.id !== id));
-        toast({
-          title: 'Doctor Hidden',
-          description: 'Doctor has been deactivated and hidden from the list.',
-        });
-      } else {
-        // If activating (though they might be hidden), update the data
-        const updatedDoc = response.doctor || { ...mapDoctorData(doctorData), isAvailable: true };
-        setDoctors(doctors.map((d) => d.id === id ? mapDoctorData(updatedDoc) : d));
-      }
-    } catch (error: any) {
-      console.error('Failed to update doctor status:', error);
-      toast({
-        title: 'Update Failed',
-        description: error.response?.data?.message || 'Failed to update doctor status.',
-        variant: 'destructive',
-      });
-    }
+  const deactivateDoctor = async (id: string) => {
+    await apiService.deactivateDoctorWithNotify(id);
+    setDoctors(prev => prev.filter(d => d.id !== id));
+    toast({ title: 'Deleted', description: 'Doctor has been deleted. Affected patients have been notified.' });
   };
 
   const confirmDelete = async () => {
     if (!doctorToDelete) return;
+    setIsDeleteAlertOpen(false);
     try {
-      await apiService.deleteDoctor(doctorToDelete.id);
-      setDoctors(doctors.filter((d) => d.id !== doctorToDelete.id));
-      toast({
-        title: 'Success',
-        description: 'Doctor has been deleted successfully.',
-      });
-      setIsDeleteAlertOpen(false);
+      await deactivateDoctor(doctorToDelete.id);
     } catch (error: any) {
       console.error('Failed to delete doctor:', error);
-      setIsDeleteAlertOpen(false);
-      
-      if (error.response?.status === 409) {
-        setIsConflictAlertOpen(true);
-      } else {
-        toast({
-          title: 'Delete Error',
-          description: error.response?.data?.message || 'An error occurred while deleting the doctor.',
-          variant: 'destructive',
-        });
-      }
+      toast({
+        title: 'Delete Failed',
+        description: error.response?.data?.message || 'An error occurred while deleting the doctor.',
+        variant: 'destructive',
+      });
     }
+    setDoctorToDelete(null);
   };
 
   const handleDelete = (doctor: any) => {
     setDoctorToDelete(doctor);
     setIsDeleteAlertOpen(true);
+  };
+
+  const handleSearch = () => {
+    setPage(1);
+    setAppliedSearch(searchTerm);
   };
 
   const filteredDoctors = doctors.filter(
@@ -277,9 +239,15 @@ export default function AdminDoctorsPage() {
                   placeholder="Search by name or specialization..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   className="flex-1"
                 />
-                <Button variant="outline">Search</Button>
+                <Button variant="outline" onClick={handleSearch}>Search</Button>
+                {appliedSearch && (
+                  <Button variant="ghost" onClick={() => { setSearchTerm(''); setAppliedSearch(''); setPage(1); }}>
+                    Clear
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -356,30 +324,16 @@ export default function AdminDoctorsPage() {
                         <Button size="sm" variant="outline" onClick={() => handleEdit(doctor)}>
                           <Edit size={16} className="mr-1" /> Edit
                         </Button>
-                        <Button
-                          size="sm"
-                          variant={
-                            doctor.isAvailable ? 'destructive' : 'default'
-                          }
-                          className={doctor.isAvailable ? 'bg-red-50 text-red-600 hover:bg-red-100 border-red-200' : 'bg-green-600 hover:bg-green-700 text-white'}
-                          onClick={() =>
-                            handleStatusUpdate(doctor.id, doctor.isAvailable)
-                          }
-                        >
-                          {doctor.isAvailable ? (
-                            <><UserX size={16} className="mr-1" /> Deactivate</>
-                          ) : (
-                            <><UserCheck size={16} className="mr-1" /> Activate</>
-                          )}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                          onClick={() => handleDelete(doctor)}
-                        >
-                          <X size={16} className="mr-1" /> Delete
-                        </Button>
+                        {doctor.isAvailable && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                            onClick={() => handleDelete(doctor)}
+                          >
+                            <UserX size={16} className="mr-1" /> Delete
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -389,7 +343,7 @@ export default function AdminDoctorsPage() {
           )}
 
           {/* Pagination */}
-          {!isLoading && doctors.length > 0 && (
+          {!isLoading && totalPages > 1 && (
             <div className="flex justify-between items-center mt-8">
               <Button
                 variant="outline"
@@ -398,10 +352,11 @@ export default function AdminDoctorsPage() {
               >
                 Previous
               </Button>
-              <span className="text-gray-600">Page {page}</span>
+              <span className="text-gray-600">Page {page} / {totalPages}</span>
               <Button
                 variant="outline"
-                onClick={() => setPage(page + 1)}
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
+                disabled={page >= totalPages}
               >
                 Next
               </Button>
@@ -521,8 +476,8 @@ export default function AdminDoctorsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm doctor deletion?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete doctor <span className="font-bold text-gray-900">{doctorToDelete?.fullName}</span>? 
-              This action cannot be undone.
+              Are you sure you want to delete doctor <span className="font-bold text-gray-900">{doctorToDelete?.fullName}</span>?
+              The doctor will be removed from the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -537,29 +492,6 @@ export default function AdminDoctorsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Conflict / Cannot Delete Alert */}
-      <AlertDialog open={isConflictAlertOpen} onOpenChange={setIsConflictAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600">Cannot delete doctor</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>
-                Doctor <span className="font-bold">{doctorToDelete?.fullName}</span> currently has related data in the system 
-                (appointments, medical records, or reviews).
-              </p>
-              <p className="bg-amber-50 p-3 rounded-md border border-amber-200 text-amber-800">
-                <strong>Solution:</strong> The system requires keeping this information for reporting purposes. 
-                Please use the <strong className="text-red-600">"Deactivate"</strong> button to hide the doctor from the list instead of deleting them completely.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setIsConflictAlertOpen(false)}>
-              Understood
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

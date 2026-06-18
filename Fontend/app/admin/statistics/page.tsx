@@ -52,7 +52,7 @@ export default function AdminStatisticsPage() {
     const fetchStats = async () => {
       try {
         const response = await apiService.getAdminDashboard();
-        setData(response?.data || response);
+        setData((response as any)?.data || response);
       } catch (error) {
         console.error('Failed to fetch statistics:', error);
       } finally {
@@ -312,7 +312,7 @@ export default function AdminStatisticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {monthlyData.map((row, i) => (
+                    {monthlyData.map((row: any, i: number) => (
                       <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
                         <td className="py-4 font-bold text-slate-900">{row.name} 2026</td>
                         <td className="py-4 font-black text-blue-600">{row.appointments}</td>

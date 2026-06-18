@@ -102,7 +102,7 @@ export default function DoctorOnboardingPage() {
         hospitalId: parseInt(formData.hospitalId)
       };
 
-      await apiService.client.post('/api/doctors/onboarding', payload);
+      await apiService.createDoctorOnboarding(payload);
       
       toast({
         title: 'Welcome aboard!',

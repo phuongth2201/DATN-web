@@ -1,10 +1,13 @@
 package hospital.web.rest;
 
 import hospital.config.Constants;
-import hospital.domain.Appointment;
+import hospital.domain.Doctor;
 import hospital.domain.User;
+import hospital.domain.enumeration.AppointmentStatus;
 import hospital.repository.AppointmentRepository;
+import hospital.repository.DoctorRepository;
 import hospital.repository.UserRepository;
+import hospital.service.NotificationService;
 import hospital.security.AuthoritiesConstants;
 import hospital.service.MailService;
 import hospital.service.UserService;
@@ -86,17 +89,25 @@ public class UserResource {
 
     private final AppointmentRepository appointmentRepository;
 
+    private final DoctorRepository doctorRepository;
+
+    private final NotificationService notificationService;
+
     private final MailService mailService;
 
     public UserResource(
         UserService userService,
         UserRepository userRepository,
         AppointmentRepository appointmentRepository,
+        DoctorRepository doctorRepository,
+        NotificationService notificationService,
         MailService mailService
     ) {
         this.userService = userService;
         this.userRepository = userRepository;
         this.appointmentRepository = appointmentRepository;
+        this.doctorRepository = doctorRepository;
+        this.notificationService = notificationService;
         this.mailService = mailService;
     }
 
@@ -228,15 +239,48 @@ public class UserResource {
     @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")
     public ResponseEntity<Map<String, Object>> deleteUser(@PathVariable("id") String id) {
         LOG.debug("REST request to delete User: {}", id);
-        Optional<User> user = userRepository.findOneByLogin(id);
-        if (user.isPresent()) {
-            userRepository.delete(user.orElseThrow());
-        } else if (id.matches("\\d+")) {
-            userRepository.findById(Long.parseLong(id)).ifPresent(userRepository::delete);
+        Optional<User> userOpt = userRepository.findOneByLogin(id);
+        if (!userOpt.isPresent() && id.matches("\\d+")) {
+            userOpt = userRepository.findById(Long.parseLong(id));
+        }
+        if (userOpt.isPresent()) {
+            User targetUser = userOpt.get();
+            // Soft-delete: deactivate instead of hard delete
+            targetUser.setActivated(false);
+            userRepository.save(targetUser);
+            // If this user is also a doctor, deactivate doctor profile + cancel appointments + notify patients
+            doctorRepository.findByEmail(targetUser.getEmail()).ifPresent(doctor -> {
+                if (Boolean.TRUE.equals(doctor.getActive())) {
+                    doctor.setActive(false);
+                    doctorRepository.save(doctor);
+                    appointmentRepository.findByDoctorId(doctor.getId())
+                        .stream()
+                        .filter(a -> a.getStatus() == AppointmentStatus.PENDING || a.getStatus() == AppointmentStatus.CONFIRMED)
+                        .forEach(appointment -> {
+                            appointment.setStatus(AppointmentStatus.CANCELLED);
+                            appointment.setNotes(
+                                (appointment.getNotes() == null ? "" : appointment.getNotes() + "\n") +
+                                "[SYSTEM]: Doctor is no longer available."
+                            );
+                            appointmentRepository.save(appointment);
+                            if (appointment.getUser() != null) {
+                                notificationService.createNotification(
+                                    appointment.getUser().getId(),
+                                    "Doctor Unavailable",
+                                    "Your appointment with Dr. " + doctor.getFullName() +
+                                    " has been cancelled because the doctor is currently unavailable. " +
+                                    "Please book with another doctor — there is no extra charge and you may find an even better match for your needs.",
+                                    "DOCTOR_UNAVAILABLE",
+                                    appointment.getId()
+                                );
+                            }
+                        });
+                }
+            });
         } else {
             userService.deleteUser(id);
         }
-        return ResponseEntity.ok(Map.of("id", id, "message", "User deleted successfully"));
+        return ResponseEntity.ok(Map.of("id", id, "message", "User deactivated successfully"));
     }
 
     private Map<String, Object> toSummary(User user) {
@@ -249,6 +293,18 @@ public class UserResource {
             ((user.getFirstName() == null ? "" : user.getFirstName()) + " " + (user.getLastName() == null ? "" : user.getLastName())).trim()
         );
         map.put("phoneNumber", user.getPhoneNumber());
+        // Cross-reference doctor profile: if user's doctor profile is inactive, display as inactive
+        boolean effectiveActivated = user.isActivated();
+        if (effectiveActivated) {
+            Doctor doctorProfile = doctorRepository.findByEmail(user.getEmail()).orElse(null);
+            if (doctorProfile != null && !Boolean.TRUE.equals(doctorProfile.getActive())) {
+                effectiveActivated = false;
+                // Persist the sync so DB stays consistent
+                user.setActivated(false);
+                userRepository.save(user);
+            }
+        }
+        map.put("activated", effectiveActivated);
         map.put("createdAt", user.getCreatedDate());
         map.put("authorities", user.getAuthorities().stream().map(authority -> authority.getName()).toList());
         map.put(
