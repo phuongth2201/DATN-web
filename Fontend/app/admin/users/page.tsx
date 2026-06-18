@@ -1,16 +1,24 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuthStore } from '@/stores/authStore';
-import { Navbar } from '@/components/layout/Navbar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Mail, Phone, User as UserIcon, Shield, CheckCircle, Save, Trash2 } from 'lucide-react';
-import { apiService } from '@/services/api';
-import { useToast } from '@/components/ui/use-toast';
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuthStore } from "@/stores/authStore";
+import { Navbar } from "@/components/layout/Navbar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Mail,
+  Phone,
+  User as UserIcon,
+  Shield,
+  CheckCircle,
+  Save,
+  Trash2,
+} from "lucide-react";
+import { apiService } from "@/services/api";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,7 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle } from "lucide-react";
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -38,7 +46,9 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const searchParams = useSearchParams();
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [searchTerm, setSearchTerm] = useState(
+    searchParams.get("search") || "",
+  );
   const [page, setPage] = useState(1);
 
   // Modal State
@@ -47,10 +57,11 @@ export default function AdminUsersPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
   // Error Alert State
   const [isErrorAlertOpen, setIsErrorAlertOpen] = useState(false);
-  const [errorAlertMessage, setErrorAlertMessage] = useState('');
+  const [errorAlertMessage, setErrorAlertMessage] = useState("");
   const [userToDelete, setUserToDelete] = useState<any>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -63,14 +74,14 @@ export default function AdminUsersPage() {
       else if (Array.isArray(response?.data)) usersList = response.data;
       else if (response?.data?.users) usersList = response.data.users;
       else if (response?.users) usersList = response.users;
-      
+
       setUsers(usersList);
     } catch (error) {
-      console.error('Failed to fetch users:', error);
+      console.error("Failed to fetch users:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to load users list.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load users list.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -80,8 +91,8 @@ export default function AdminUsersPage() {
   useEffect(() => {
     if (!isInitialized) return;
     const role = user?.role?.toUpperCase();
-    if (!isAuthenticated || (role !== 'ADMIN' && role !== 'ROLE_ADMIN')) {
-      router.push('/');
+    if (!isAuthenticated || (role !== "ADMIN" && role !== "ROLE_ADMIN")) {
+      router.push("/");
       return;
     }
 
@@ -90,20 +101,57 @@ export default function AdminUsersPage() {
 
   const filteredUsers = users.filter(
     (u) =>
-      (u.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+      (u.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.email || "").toLowerCase().includes(searchTerm.toLowerCase()),
   );
+
+  const RequiredMark = () => <span className="text-red-500 ml-1">*</span>;
+
+  const RequiredMessage = ({ message }: { message: string }) => (
+    <p className="text-xs font-medium text-red-500 mt-1">{message}</p>
+  );
+
+  const updateSelectedUserField = (field: string, value: any) => {
+    setSelectedUser((prev: any) => ({ ...prev, [field]: value }));
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
+
+  const validateCreateUser = () => {
+    if (!isCreateMode || !selectedUser) return true;
+
+    const errors: Record<string, string> = {};
+    if (!(selectedUser.fullName || "").trim()) {
+      errors.fullName = "Please enter your full name.";
+    }
+    if (!(selectedUser.email || "").trim()) {
+      errors.email = "Please enter your email.";
+    }
+    if (!selectedUser.authorities?.[0]) {
+      errors.authorities = "Please select a role.";
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleViewDetails = async (u: any) => {
     try {
       const fullUser = await apiService.getUserById(u.login || u.email);
       setSelectedUser(fullUser);
       setIsEditMode(false);
+      setFieldErrors({});
       setIsModalOpen(true);
     } catch (error) {
       setSelectedUser(u);
       setIsEditMode(false);
       setIsCreateMode(false);
+      setFieldErrors({});
       setIsModalOpen(true);
     }
   };
@@ -118,59 +166,63 @@ export default function AdminUsersPage() {
     }
     setIsEditMode(true);
     setIsCreateMode(false);
+    setFieldErrors({});
     setIsModalOpen(true);
   };
 
   const handleCreate = () => {
     setSelectedUser({
-      fullName: '',
-      email: '',
-      phoneNumber: '',
-      authorities: ['ROLE_USER'],
-      password: 'Hospital@123',
+      fullName: "",
+      email: "",
+      phoneNumber: "",
+      authorities: ["ROLE_USER"],
+      password: "Hospital@123",
     });
     setIsEditMode(true);
     setIsCreateMode(true);
+    setFieldErrors({});
     setIsModalOpen(true);
   };
 
   const handleSave = async () => {
     if (!selectedUser) return;
+    if (!validateCreateUser()) return;
     setIsSaving(true);
     try {
-      const nameParts = (selectedUser.fullName || '').trim().split(' ');
-      const firstName = nameParts[0] || selectedUser.firstName || '';
-      const lastName = nameParts.slice(1).join(' ') || selectedUser.lastName || '';
+      const nameParts = (selectedUser.fullName || "").trim().split(" ");
+      const firstName = nameParts[0] || selectedUser.firstName || "";
+      const lastName =
+        nameParts.slice(1).join(" ") || selectedUser.lastName || "";
 
       const updateData = {
         ...selectedUser,
         firstName,
         lastName,
-        login: selectedUser.login || selectedUser.email.split('@')[0],
+        login: selectedUser.login || selectedUser.email.split("@")[0],
       };
 
       if (isCreateMode) {
         await apiService.createUser(updateData);
         toast({
-          title: 'User Created',
-          description: `Account created. Initial password: ${updateData.password || 'Hospital@123'}`,
+          title: "User Created",
+          description: `Account created. Initial password: ${updateData.password || "Hospital@123"}`,
         });
       } else {
         await apiService.updateUser(updateData);
         toast({
-          title: 'Success',
-          description: 'User information updated successfully.',
+          title: "Success",
+          description: "User information updated successfully.",
         });
       }
-      
+
       setIsModalOpen(false);
       await fetchUsers();
     } catch (error) {
-      console.error('Failed to update user:', error);
+      console.error("Failed to update user:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to update user information.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to update user information.",
+        variant: "destructive",
       });
     } finally {
       setIsSaving(false);
@@ -191,18 +243,22 @@ export default function AdminUsersPage() {
     try {
       await apiService.deleteUser(identifier);
       toast({
-        title: 'User Deleted',
-        description: 'The user account has been removed.',
+        title: "User Deleted",
+        description: "The user account has been removed.",
       });
       fetchUsers();
     } catch (error: any) {
-      console.error('Failed to delete user:', error);
-      
+      console.error("Failed to delete user:", error);
+
       // Show beautiful error dialog
       if (error.response?.status === 500 || error.response?.status === 400) {
-        setErrorAlertMessage('This user currently has appointments or related data, and cannot be deleted directly!');
+        setErrorAlertMessage(
+          "This user currently has appointments or related data, and cannot be deleted directly!",
+        );
       } else {
-        setErrorAlertMessage('An error occurred during user deletion. Please try again later.');
+        setErrorAlertMessage(
+          "An error occurred during user deletion. Please try again later.",
+        );
       }
       setIsErrorAlertOpen(true);
     }
@@ -216,7 +272,7 @@ export default function AdminUsersPage() {
       </div>
     );
   }
-  if (!isAuthenticated || (role !== 'ADMIN' && role !== 'ROLE_ADMIN')) {
+  if (!isAuthenticated || (role !== "ADMIN" && role !== "ROLE_ADMIN")) {
     return null;
   }
 
@@ -277,7 +333,10 @@ export default function AdminUsersPage() {
           ) : (
             <div className="space-y-4">
               {filteredUsers.map((u) => (
-                <Card key={u.id || u.email} className="hover:shadow-md transition-shadow">
+                <Card
+                  key={u.id || u.email}
+                  className="hover:shadow-md transition-shadow"
+                >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-4 flex-1">
@@ -286,9 +345,15 @@ export default function AdminUsersPage() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-lg">{u.fullName}</h3>
-                            {u.authorities?.includes('ROLE_ADMIN') && (
-                              <Shield size={16} className="text-amber-500" title="Admin" />
+                            <h3 className="font-semibold text-lg">
+                              {u.fullName}
+                            </h3>
+                            {u.authorities?.includes("ROLE_ADMIN") && (
+                              <Shield
+                                size={16}
+                                className="text-amber-500"
+                                title="Admin"
+                              />
                             )}
                           </div>
                           <div className="flex items-center gap-4 mt-2 text-gray-600 text-sm">
@@ -298,23 +363,41 @@ export default function AdminUsersPage() {
                             </div>
                             <div className="flex items-center gap-1">
                               <Phone size={16} />
-                              {u.phoneNumber || u.phone || u.mobile || 'No phone'}
+                              {u.phoneNumber ||
+                                u.phone ||
+                                u.mobile ||
+                                "No phone"}
                             </div>
                           </div>
                           <p className="text-sm text-gray-500 mt-2">
-                            Joined:{' '}
-                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}
+                            Joined:{" "}
+                            {u.createdAt
+                              ? new Date(u.createdAt).toLocaleDateString()
+                              : "N/A"}
                           </p>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleViewDetails(u)}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewDetails(u)}
+                        >
                           View Details
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleEdit(u)}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEdit(u)}
+                        >
                           Edit
                         </Button>
-                        <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(u)}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDelete(u)}
+                        >
                           <Trash2 size={16} />
                         </Button>
                       </div>
@@ -352,40 +435,80 @@ export default function AdminUsersPage() {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{isCreateMode ? 'Add New User' : (isEditMode ? 'Edit User' : 'User Details')}</DialogTitle>
+            <DialogTitle>
+              {isCreateMode
+                ? "Add New User"
+                : isEditMode
+                  ? "Edit User"
+                  : "User Details"}
+            </DialogTitle>
             <DialogDescription>
-              {isCreateMode ? 'Fill out the form below to create a new user.' : (isEditMode ? 'Update user information below.' : 'Detailed information about the user account.')}
+              {isCreateMode
+                ? "Fill out the form below to create a new user."
+                : isEditMode
+                  ? "Update user information below."
+                  : "Detailed information about the user account."}
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedUser && (
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">Full Name</Label>
-                <Input
-                  id="name"
-                  value={selectedUser.fullName || ''}
-                  onChange={(e) => setSelectedUser({ ...selectedUser, fullName: e.target.value })}
-                  disabled={!isEditMode}
-                  className="col-span-3"
-                />
+                <Label htmlFor="name" className="text-right">
+                  Full Name{isCreateMode && <RequiredMark />}
+                </Label>
+                <div className="col-span-3">
+                  <Input
+                    id="name"
+                    value={selectedUser.fullName || ""}
+                    onChange={(e) =>
+                      updateSelectedUserField("fullName", e.target.value)
+                    }
+                    disabled={!isEditMode}
+                    className={
+                      fieldErrors.fullName
+                        ? "border-red-300 focus-visible:ring-red-200"
+                        : ""
+                    }
+                  />
+                  {fieldErrors.fullName && (
+                    <RequiredMessage message={fieldErrors.fullName} />
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">Email</Label>
-                <Input
-                  id="email"
-                  value={selectedUser.email || ''}
-                  onChange={(e) => setSelectedUser({ ...selectedUser, email: e.target.value })}
-                  disabled={!isEditMode}
-                  className="col-span-3"
-                />
+                <Label htmlFor="email" className="text-right">
+                  Email{isCreateMode && <RequiredMark />}
+                </Label>
+                <div className="col-span-3">
+                  <Input
+                    id="email"
+                    value={selectedUser.email || ""}
+                    onChange={(e) =>
+                      updateSelectedUserField("email", e.target.value)
+                    }
+                    disabled={!isEditMode}
+                    className={
+                      fieldErrors.email
+                        ? "border-red-300 focus-visible:ring-red-200"
+                        : ""
+                    }
+                  />
+                  {fieldErrors.email && (
+                    <RequiredMessage message={fieldErrors.email} />
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="phone" className="text-right">Phone</Label>
+                <Label htmlFor="phone" className="text-right">
+                  Phone
+                </Label>
                 <Input
                   id="phone"
-                  value={selectedUser.phoneNumber || ''}
-                  onChange={(e) => setSelectedUser({ ...selectedUser, phoneNumber: e.target.value })}
+                  value={selectedUser.phoneNumber || ""}
+                  onChange={(e) =>
+                    updateSelectedUserField("phoneNumber", e.target.value)
+                  }
                   disabled={!isEditMode}
                   className="col-span-3"
                 />
@@ -396,14 +519,19 @@ export default function AdminUsersPage() {
                     <Label className="text-right">Status</Label>
                     <div className="col-span-3 flex items-center gap-2">
                       <CheckCircle size={16} className="text-green-500" />
-                      <span className="text-sm font-medium">Active Account</span>
+                      <span className="text-sm font-medium">
+                        Active Account
+                      </span>
                     </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Authorities</Label>
                     <div className="col-span-3 flex flex-wrap gap-1">
                       {selectedUser.authorities?.map((auth: string) => (
-                        <span key={auth} className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-100">
+                        <span
+                          key={auth}
+                          className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-100"
+                        >
                           {auth}
                         </span>
                       ))}
@@ -413,26 +541,39 @@ export default function AdminUsersPage() {
               )}
               {isEditMode && (
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right">Role</Label>
-                  <select
-                    value={selectedUser.authorities?.[0] || 'ROLE_USER'}
-                    onChange={(e) => setSelectedUser({ ...selectedUser, authorities: [e.target.value] })}
-                    className="col-span-3 px-3 py-2 border rounded-md"
-                  >
-                    <option value="ROLE_USER">Patient (ROLE_USER)</option>
-                    <option value="ROLE_DOCTOR">Doctor (ROLE_DOCTOR)</option>
-                    <option value="ROLE_ADMIN">Admin (ROLE_ADMIN)</option>
-                  </select>
+                  <Label className="text-right">
+                    Role{isCreateMode && <RequiredMark />}
+                  </Label>
+                  <div className="col-span-3">
+                    <select
+                      value={selectedUser.authorities?.[0] || "ROLE_USER"}
+                      onChange={(e) =>
+                        updateSelectedUserField("authorities", [e.target.value])
+                      }
+                      className={`w-full px-3 py-2 border rounded-md ${fieldErrors.authorities ? "border-red-300 focus:ring-red-200" : ""}`}
+                    >
+                      <option value="ROLE_USER">Patient (ROLE_USER)</option>
+                      <option value="ROLE_DOCTOR">Doctor (ROLE_DOCTOR)</option>
+                      <option value="ROLE_ADMIN">Admin (ROLE_ADMIN)</option>
+                    </select>
+                    {fieldErrors.authorities && (
+                      <RequiredMessage message={fieldErrors.authorities} />
+                    )}
+                  </div>
                 </div>
               )}
               {isCreateMode && (
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="password" className="text-right">Password</Label>
+                  <Label htmlFor="password" className="text-right">
+                    Password{isCreateMode && <RequiredMark />}
+                  </Label>
                   <Input
                     id="password"
                     type="password"
-                    value={selectedUser.password || ''}
-                    onChange={(e) => setSelectedUser({ ...selectedUser, password: e.target.value })}
+                    value={selectedUser.password || ""}
+                    onChange={(e) =>
+                      updateSelectedUserField("password", e.target.value)
+                    }
                     className="col-span-3 font-mono"
                     placeholder="Min 8 chars, 1 uppercase, 1 number"
                   />
@@ -443,11 +584,11 @@ export default function AdminUsersPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-              {isEditMode ? 'Cancel' : 'Close'}
+              {isEditMode ? "Cancel" : "Close"}
             </Button>
             {isEditMode && (
               <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save Changes'}
+                {isSaving ? "Saving..." : "Save Changes"}
                 {!isSaving && <Save size={16} className="ml-2" />}
               </Button>
             )}
@@ -456,17 +597,25 @@ export default function AdminUsersPage() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+      <AlertDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
+      >
         <AlertDialogContent className="max-w-[400px]">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete User Account?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete <strong>{userToDelete?.fullName || userToDelete?.email}</strong>. This action cannot be undone.
+              This will permanently delete{" "}
+              <strong>{userToDelete?.fullName || userToDelete?.email}</strong>.
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white" onClick={confirmDelete}>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={confirmDelete}
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -481,7 +630,9 @@ export default function AdminUsersPage() {
               <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
                 <AlertCircle size={24} />
               </div>
-              <AlertDialogTitle className="text-xl">Cannot delete</AlertDialogTitle>
+              <AlertDialogTitle className="text-xl">
+                Cannot delete
+              </AlertDialogTitle>
             </div>
             <AlertDialogDescription className="text-gray-600 py-2 text-base">
               {errorAlertMessage}
