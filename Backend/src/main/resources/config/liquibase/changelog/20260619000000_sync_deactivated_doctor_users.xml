@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Deactivate jhi_user accounts whose corresponding doctor profile is inactive.
+         Covers existing data where doctor was soft-deleted before the sync fix was deployed. -->
+    <changeSet id="20260619000000-2" author="system">
+        <sql>
+            UPDATE jhi_user
+            SET activated = false
+            FROM doctor
+            WHERE LOWER(jhi_user.email) = LOWER(doctor.email)
+              AND doctor.active = false
+              AND jhi_user.activated = true;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
