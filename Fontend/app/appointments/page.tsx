@@ -28,6 +28,7 @@ export default function AppointmentsPage() {
   const { toast } = useToast();
   const [selectedAptToPay, setSelectedAptToPay] = useState<any>(null);
   const [cancellingRebook, setCancellingRebook] = useState<string | null>(null);
+  const [dismissingApt, setDismissingApt] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterDate, setFilterDate] = useState<string>('');
   const [sortBy, setSortBy] = useState<'date' | 'created'>('created');
@@ -76,6 +77,23 @@ export default function AppointmentsPage() {
   if (!isInitialized || !isAuthenticated) {
     return null;
   }
+
+  const handleDismiss = async (aptId: string) => {
+    setDismissingApt(aptId);
+    try {
+      await apiService.dismissAppointment(aptId);
+      toast({ title: 'Appointment Cancelled', description: 'The appointment has been removed.' });
+      fetchAppointments();
+    } catch (error: any) {
+      toast({
+        title: 'Failed to Cancel',
+        description: error?.response?.data?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDismissingApt(null);
+    }
+  };
 
   const handleCancelRebook = async (aptId: string) => {
     setCancellingRebook(aptId);
@@ -191,13 +209,30 @@ export default function AppointmentsPage() {
                     </p>
                     <p className="text-xs text-amber-600 font-medium">No extra charge — same slot, new doctor</p>
                   </div>
-                  <Button
-                    onClick={() => router.push(`/doctors?rebookId=${apt.id}`)}
-                    className="bg-amber-600 hover:bg-amber-700 text-white whitespace-nowrap shrink-0"
-                  >
-                    <ArrowRight className="w-4 h-4 mr-2" />
-                    Change Doctor
-                  </Button>
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      onClick={() => router.push(`/doctors?rebookId=${apt.id}`)}
+                      className="bg-amber-600 hover:bg-amber-700 text-white whitespace-nowrap"
+                    >
+                      <ArrowRight className="w-4 h-4 mr-2" />
+                      Change Doctor
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-red-300 text-red-700 hover:bg-red-50 whitespace-nowrap"
+                      disabled={dismissingApt === apt.id}
+                      onClick={() => handleDismiss(apt.id)}
+                    >
+                      {dismissingApt === apt.id ? (
+                        <span className="flex items-center gap-2">
+                          <span className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                          Cancelling...
+                        </span>
+                      ) : (
+                        'Cancel Appointment'
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

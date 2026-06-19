@@ -690,6 +690,11 @@ class ApiService {
     return res.data;
   }
 
+  async dismissAppointment(id: string | number) {
+    const res = await this.client.put(`/api/appointments/${id}/dismiss`);
+    return res.data;
+  }
+
   async confirmDirectPayment(appointmentId: string | number, paymentMethod: string, amount: number) {
     const res = await this.client.post('/api/payments/confirm-direct', {
       appointmentId: Number(appointmentId),
