@@ -3,19 +3,20 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  CreditCard, 
-  Wallet, 
-  ShieldCheck, 
-  CheckCircle2, 
-  Loader2, 
-  X, 
+import {
+  CreditCard,
+  Wallet,
+  ShieldCheck,
+  CheckCircle2,
+  Loader2,
+  X,
   QrCode,
   AlertCircle
 } from 'lucide-react';
 import { useAppointmentStore } from '@/stores/appointmentStore';
 import { useToast } from '@/hooks/use-toast';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { apiService } from '@/services/api';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -63,13 +64,21 @@ export function PaymentModal({ isOpen, onClose, appointment }: PaymentModalProps
   const executePayment = async () => {
     setIsProcessing(true);
     setStep('processing');
-    
+
+    const amount = Number(appointment.price) || 500000;
+    const method = selectedMethod.toUpperCase();
+
     try {
-      // Call real payment API to save to DB and get checkoutUrl from backend
-      await processPayment(appointment.id, selectedMethod.toUpperCase(), appointment.price || 500000);
-      
-      // The processPayment store already has a redirect: window.location.href = response.checkoutUrl;
-      // So here we just wait for the redirect.
+      if (selectedMethod === 'transfer' || selectedMethod === 'momo') {
+        // Direct confirm — no PayOS redirect needed for QR/transfer flows
+        await apiService.confirmDirectPayment(appointment.id, method, amount);
+        setStep('success');
+        setIsProcessing(false);
+      } else {
+        // VNPay: go through PayOS → redirect to checkout
+        await processPayment(appointment.id, method, amount);
+        // window.location.href redirect happens inside processPayment
+      }
     } catch (error) {
       toast({ title: 'Error', description: 'Payment failed, please try again', variant: 'destructive' });
       setStep('selection');

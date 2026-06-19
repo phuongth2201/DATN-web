@@ -51,6 +51,7 @@ export default function AppointmentsPage() {
   }, [isInitialized, isAuthenticated, user?.role, fetchAppointments, router]);
 
   useEffect(() => {
+    if (!isInitialized || !isAuthenticated) return;
     const paymentParam = searchParams.get('payment');
     const orderCode = searchParams.get('orderCode');
     if (paymentParam === 'success' && orderCode && !paymentConfirmedRef.current) {
@@ -70,7 +71,7 @@ export default function AppointmentsPage() {
       toast({ title: 'Payment Cancelled', description: 'Your payment was not completed.', variant: 'destructive' });
       router.replace('/appointments');
     }
-  }, [searchParams, fetchAppointments, router, toast]);
+  }, [searchParams, isInitialized, isAuthenticated, fetchAppointments, router, toast]);
 
   if (!isInitialized || !isAuthenticated) {
     return null;
@@ -420,6 +421,7 @@ export default function AppointmentsPage() {
                         
                         {appointment.status === 'CONFIRMED' &&
                           appointment.paymentStatus !== 'PAID' &&
+                          Number(appointment.price) > 0 &&
                           new Date(appointment.appointmentDate + 'T00:00:00') >= new Date(new Date().toDateString()) && (
                           <Button
                             onClick={() => setSelectedAptToPay(appointment)}

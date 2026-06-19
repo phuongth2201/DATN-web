@@ -134,6 +134,38 @@ public class PaymentResource {
         }
     }
 
+    @PostMapping("/payments/confirm-direct")
+    public ResponseEntity<Map<String, Object>> confirmDirect(@RequestBody ConfirmDirectRequest request) {
+        User user = currentUser();
+
+        Appointment appointment = appointmentRepository
+            .findById(request.appointmentId())
+            .orElseThrow(() -> new IllegalStateException("Appointment not found"));
+
+        if (appointment.getUser() == null || !appointment.getUser().getLogin().equalsIgnoreCase(user.getLogin())) {
+            throw new IllegalStateException("Unauthorized");
+        }
+
+        Payment payment = new Payment();
+        payment.setUser(user);
+        payment.setAppointment(appointment);
+        payment.setAmount(request.amount());
+        payment.setPaymentMethod(request.paymentMethod());
+        payment.setStatus("SUCCESS");
+        payment.setTransactionId("DIRECT-" + System.currentTimeMillis());
+        payment.setCreatedAt(Instant.now());
+        paymentRepository.save(payment);
+
+        appointment.setPaymentStatus("PAID");
+        appointmentRepository.save(appointment);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("appointmentId", appointment.getId());
+        result.put("paymentStatus", "PAID");
+        return ResponseEntity.ok(result);
+    }
+
     @PostMapping("/payments/confirm-return")
     public ResponseEntity<Map<String, Object>> confirmReturn(@RequestBody ConfirmReturnRequest request) {
         try {
@@ -250,4 +282,6 @@ public class PaymentResource {
     ) {}
 
     public record ConfirmReturnRequest(Long orderCode) {}
+
+    public record ConfirmDirectRequest(Long appointmentId, Long amount, String paymentMethod) {}
 }

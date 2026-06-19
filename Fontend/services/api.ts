@@ -690,6 +690,15 @@ class ApiService {
     return res.data;
   }
 
+  async confirmDirectPayment(appointmentId: string | number, paymentMethod: string, amount: number) {
+    const res = await this.client.post('/api/payments/confirm-direct', {
+      appointmentId: Number(appointmentId),
+      paymentMethod,
+      amount,
+    });
+    return res.data;
+  }
+
   // Notifications endpoints
   async getNotifications(page = 1, limit = 20) {
     return (await this.client.get('/api/notifications', { params: { page, limit } })).data;
