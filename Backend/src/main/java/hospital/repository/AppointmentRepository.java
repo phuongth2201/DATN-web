@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Long>, JpaSpecificationExecutor<Appointment> {
     List<Appointment> findByUserLogin(String login);
+    List<Appointment> findByUserLoginAndDismissedFalse(String login);
     List<Appointment> findByDoctorId(Long doctorId);
     long countByDoctorId(Long doctorId);
     List<Appointment> findByDoctorIdAndAppointmentDateBetween(Long doctorId, java.time.LocalDate startDate, java.time.LocalDate endDate);

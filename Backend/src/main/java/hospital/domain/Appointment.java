@@ -56,6 +56,9 @@ public class Appointment implements Serializable {
     @Column(name = "pending_doctor_id")
     private Long pendingDoctorId;
 
+    @Column(name = "dismissed", nullable = false)
+    private boolean dismissed = false;
+
     @ManyToOne(optional = false)
     @NotNull
     private User user;
@@ -240,6 +243,14 @@ public class Appointment implements Serializable {
 
     public void setPendingDoctorId(Long pendingDoctorId) {
         this.pendingDoctorId = pendingDoctorId;
+    }
+
+    public boolean isDismissed() {
+        return dismissed;
+    }
+
+    public void setDismissed(boolean dismissed) {
+        this.dismissed = dismissed;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
