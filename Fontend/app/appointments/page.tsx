@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { useAppointmentStore } from '@/stores/appointmentStore';
 import { Navbar } from '@/components/layout/Navbar';
@@ -22,6 +22,7 @@ const isRebookPending = (apt: any) => apt.status === 'REBOOK_PENDING';
 
 export default function AppointmentsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAuthenticated, isInitialized, user } = useAuthStore();
   const { appointments, isLoading, fetchAppointments } = useAppointmentStore();
   const { toast } = useToast();
@@ -31,6 +32,7 @@ export default function AppointmentsPage() {
   const [filterDate, setFilterDate] = useState<string>('');
   const [sortBy, setSortBy] = useState<'date' | 'created'>('created');
   const [sortByStatus, setSortByStatus] = useState(false);
+  const paymentConfirmedRef = useRef(false);
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -47,6 +49,28 @@ export default function AppointmentsPage() {
 
     fetchAppointments();
   }, [isInitialized, isAuthenticated, user?.role, fetchAppointments, router]);
+
+  useEffect(() => {
+    const paymentParam = searchParams.get('payment');
+    const orderCode = searchParams.get('orderCode');
+    if (paymentParam === 'success' && orderCode && !paymentConfirmedRef.current) {
+      paymentConfirmedRef.current = true;
+      apiService.confirmPaymentReturn(orderCode)
+        .then(() => {
+          toast({ title: 'Payment Successful', description: 'Your payment has been confirmed.' });
+          fetchAppointments();
+          router.replace('/appointments');
+        })
+        .catch(() => {
+          toast({ title: 'Payment Noted', description: 'Payment received. Refreshing your appointments.', variant: 'default' });
+          fetchAppointments();
+          router.replace('/appointments');
+        });
+    } else if (paymentParam === 'cancel') {
+      toast({ title: 'Payment Cancelled', description: 'Your payment was not completed.', variant: 'destructive' });
+      router.replace('/appointments');
+    }
+  }, [searchParams, fetchAppointments, router, toast]);
 
   if (!isInitialized || !isAuthenticated) {
     return null;

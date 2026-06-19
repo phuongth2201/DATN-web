@@ -685,6 +685,11 @@ class ApiService {
     return res.data;
   }
 
+  async confirmPaymentReturn(orderCode: string | number) {
+    const res = await this.client.post('/api/payments/confirm-return', { orderCode: Number(orderCode) });
+    return res.data;
+  }
+
   // Notifications endpoints
   async getNotifications(page = 1, limit = 20) {
     return (await this.client.get('/api/notifications', { params: { page, limit } })).data;

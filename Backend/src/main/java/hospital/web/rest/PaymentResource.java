@@ -77,8 +77,8 @@ public class PaymentResource {
                 .orderCode(orderCode)
                 .amount(request.amount().longValue())
                 .description("Appt " + appointment.getId())
-                .returnUrl("http://localhost:3000/appointments/" + appointment.getId() + "?payment=success")
-                .cancelUrl("http://localhost:3000/appointments/" + appointment.getId() + "?payment=cancel")
+                .returnUrl("http://localhost:3000/appointments?payment=success&orderCode=" + orderCode)
+                .cancelUrl("http://localhost:3000/appointments?payment=cancel&orderCode=" + orderCode)
                 .build();
 
             CreatePaymentLinkResponse res = payOS.paymentRequests().create(paymentData);
@@ -131,6 +131,41 @@ public class PaymentResource {
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.ok(Map.of("success", "true"));
+        }
+    }
+
+    @PostMapping("/payments/confirm-return")
+    public ResponseEntity<Map<String, Object>> confirmReturn(@RequestBody ConfirmReturnRequest request) {
+        try {
+            Payment payment = paymentRepository.findByTransactionId(String.valueOf(request.orderCode())).orElse(null);
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            if (payment == null) {
+                result.put("success", false);
+                result.put("message", "Payment record not found");
+                return ResponseEntity.ok(result);
+            }
+
+            if (!"SUCCESS".equals(payment.getStatus())) {
+                payment.setStatus("SUCCESS");
+                paymentRepository.save(payment);
+            }
+
+            Appointment appointment = payment.getAppointment();
+            if (appointment != null && !"PAID".equals(appointment.getPaymentStatus())) {
+                appointment.setPaymentStatus("PAID");
+                appointmentRepository.save(appointment);
+            }
+
+            result.put("success", true);
+            result.put("appointmentId", appointment != null ? appointment.getId() : null);
+            result.put("paymentStatus", "PAID");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> error = new LinkedHashMap<>();
+            error.put("success", false);
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
 
@@ -213,4 +248,6 @@ public class PaymentResource {
         String expiryDate,
         String cvv
     ) {}
+
+    public record ConfirmReturnRequest(Long orderCode) {}
 }
