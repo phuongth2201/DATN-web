@@ -115,7 +115,7 @@ public class AppointmentResource {
                 .orElseThrow(() -> new IllegalStateException("Doctor profile not found for email: " + email));
             appointments = appointmentRepository.findByDoctorId(doctor.getId());
         } else {
-            appointments = appointmentRepository.findByUserLogin(login);
+            appointments = appointmentRepository.findByUserLoginAndDismissedFalse(login);
         }
 
         if (status != null && !status.isBlank()) {
@@ -515,6 +515,31 @@ public class AppointmentResource {
             if (doctor != null && doctor.getId().equals(appointment.getPendingDoctorId())) return;
         }
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+    }
+
+    @PutMapping("/appointments/{id}/dismiss")
+    public ResponseEntity<AppointmentDTO> dismissAppointment(@PathVariable Long id) {
+        String login = currentLogin();
+        Appointment appointment = appointmentRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found"));
+
+        if (appointment.getUser() == null || !appointment.getUser().getLogin().equalsIgnoreCase(login)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+        }
+        if (appointment.getStatus() != AppointmentStatus.CANCELLED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only cancelled appointments can be dismissed");
+        }
+        if (appointment.getNotes() == null || !appointment.getNotes().contains("[SYSTEM]: Doctor is no longer available")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only system-cancelled appointments can be dismissed");
+        }
+
+        appointment.setDismissed(true);
+        appointmentRepository.save(appointment);
+
+        AppointmentDTO dto = new AppointmentDTO();
+        dto.setId(appointment.getId());
+        dto.setMessage("Appointment dismissed");
+        return ResponseEntity.ok(dto);
     }
 
     private AppointmentDTO toDetailDto(Appointment appointment) {
