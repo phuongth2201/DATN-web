@@ -137,7 +137,11 @@ public class UserResource {
             throw new EmailAlreadyUsedException();
         } else {
             User newUser = userService.createUser(userDTO);
-            mailService.sendCreationEmail(newUser);
+            try {
+                mailService.sendCreationEmail(newUser);
+            } catch (Exception e) {
+                LOG.warn("Failed to send creation email to {}: {}", newUser.getEmail(), e.getMessage());
+            }
             return ResponseEntity.created(new URI("/api/admin/users/" + newUser.getLogin()))
                 .headers(
                     HeaderUtil.createAlert(applicationName, "A user is created with identifier " + newUser.getLogin(), newUser.getLogin())

@@ -51,13 +51,13 @@ function DoctorsPageInner() {
     try {
       await apiService.rebookAppointment(rebookId, doctorId);
       toast({
-        title: 'Doctor Changed Successfully',
-        description: 'Your appointment has been updated with the new doctor.',
+        title: 'Request Submitted',
+        description: 'Your rebook request has been sent for review. You will be notified once the doctor approves or rejects it.',
       });
       router.push('/appointments');
     } catch (error: any) {
       toast({
-        title: 'Failed to Change Doctor',
+        title: 'Failed to Submit Request',
         description: error?.response?.data?.message || 'Please try again.',
         variant: 'destructive',
       });

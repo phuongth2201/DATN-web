@@ -41,6 +41,7 @@ export default function LoginPage() {
     const errors: { [key: string]: string } = {};
     if (!formData.email) errors.email = 'Email or username is required';
     if (!formData.password) errors.password = 'Password is required';
+    else if (formData.password.length < 4) errors.password = 'Password must be at least 4 characters';
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -67,7 +68,16 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       console.error('Login error detail:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Please check your credentials';
+      const data = err.response?.data;
+      const code = data?.code;
+      let errorMessage: string;
+      if (code === 'ACCOUNT_DEACTIVATED') {
+        errorMessage = 'Your account has been deactivated. Please contact support.';
+      } else if (err.response?.status === 400 && Array.isArray(data?.fieldErrors)) {
+        errorMessage = data.fieldErrors.map((f: any) => f.message).join(', ') || 'Invalid input';
+      } else {
+        errorMessage = data?.error || data?.message || 'Invalid credentials. Please check your username and password.';
+      }
       toast({
         title: 'Login Failed',
         description: errorMessage,

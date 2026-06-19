@@ -222,11 +222,21 @@ export default function AdminUsersPage() {
 
       setIsModalOpen(false);
       await fetchUsers();
-    } catch (error) {
-      console.error("Failed to update user:", error);
+    } catch (error: any) {
+      console.error("Failed to save user:", error);
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.title || error?.response?.data?.message || error?.message;
+      let description = isCreateMode ? "Failed to create user." : "Failed to update user information.";
+      if (status === 400 && detail?.toLowerCase().includes("login")) {
+        description = "Login name already used. Please choose a different email.";
+      } else if (status === 400 && detail?.toLowerCase().includes("email")) {
+        description = "Email already in use. Please use a different email.";
+      } else if (detail) {
+        description = detail;
+      }
       toast({
-        title: "Error",
-        description: "Failed to update user information.",
+        title: isCreateMode ? "Create Failed" : "Update Failed",
+        description,
         variant: "destructive",
       });
     } finally {
@@ -576,10 +586,10 @@ export default function AdminUsersPage() {
                   </div>
                 </div>
               )}
-              {isCreateMode && (
+              {isEditMode && (
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="password" className="text-right">
-                    Password{isCreateMode && <RequiredMark />}
+                    {isCreateMode ? <>Password<RequiredMark /></> : "New Password"}
                   </Label>
                   <div className="col-span-3 relative">
                     <Input
@@ -590,7 +600,7 @@ export default function AdminUsersPage() {
                         updateSelectedUserField("password", e.target.value)
                       }
                       className="font-mono pr-10 w-full"
-                      placeholder="Min 8 chars, 1 uppercase, 1 number"
+                      placeholder={isCreateMode ? "Min 8 chars, 1 uppercase, 1 number" : "Leave blank to keep current password"}
                     />
                     <button
                       type="button"

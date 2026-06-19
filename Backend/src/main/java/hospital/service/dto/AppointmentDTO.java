@@ -29,6 +29,8 @@ public class AppointmentDTO implements Serializable {
     private String paymentStatus;
     private Instant createdAt;
     private String message;
+    private Long pendingDoctorId;
+    private String pendingDoctorName;
     private List<String> slots;
     private List<Map<String, Object>> reviews;
     private List<Map<String, Object>> availableSlots;
@@ -175,6 +177,22 @@ public class AppointmentDTO implements Serializable {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public Long getPendingDoctorId() {
+        return pendingDoctorId;
+    }
+
+    public void setPendingDoctorId(Long pendingDoctorId) {
+        this.pendingDoctorId = pendingDoctorId;
+    }
+
+    public String getPendingDoctorName() {
+        return pendingDoctorName;
+    }
+
+    public void setPendingDoctorName(String pendingDoctorName) {
+        this.pendingDoctorName = pendingDoctorName;
     }
 
     public List<String> getSlots() {

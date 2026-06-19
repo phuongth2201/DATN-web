@@ -235,6 +235,9 @@ public class UserService {
                         .map(Optional::get)
                         .forEach(managedAuthorities::add);
                 }
+                if (userDTO.getPassword() != null && !userDTO.getPassword().isBlank()) {
+                    user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+                }
                 userRepository.save(user);
                 ensureDoctorProfileIfNeeded(user, previousEmail);
                 this.clearUserCaches(user);

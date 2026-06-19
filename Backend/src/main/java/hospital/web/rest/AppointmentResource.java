@@ -25,11 +25,17 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api")
 public class AppointmentResource {
+
+    private static final Logger log = LoggerFactory.getLogger(AppointmentResource.class);
 
     private final AppointmentRepository appointmentRepository;
     private final DoctorRepository doctorRepository;
@@ -119,7 +125,7 @@ public class AppointmentResource {
                 .toList();
         }
         appointments = appointments.stream().sorted(sorter(sortBy, sortOrder)).toList();
-        Page<AppointmentDTO> dtoPage = sliceAppointments(appointments, page, limit).map(this::toDto);
+        Page<AppointmentDTO> dtoPage = sliceAppointments(appointments, page, limit).map(this::toDtoWithPendingDoctor);
         return ResponseEntity.ok(
             new PageResponseDTO<>(dtoPage.getContent(), new PaginationDTO(page, limit, dtoPage.getTotalElements(), dtoPage.getTotalPages()))
         );
@@ -223,45 +229,190 @@ public class AppointmentResource {
         return ResponseEntity.ok(dto);
     }
 
+    // Patient submits a rebook request — does NOT change the doctor directly.
+    // Sets status REBOOK_PENDING and stores pendingDoctorId for doctor/admin to approve.
     @PutMapping("/appointments/{id}/rebook")
     public ResponseEntity<AppointmentDTO> rebookAppointment(
         @PathVariable Long id,
         @RequestBody Map<String, Object> body
     ) {
         Appointment appointment = appointmentRepository.findById(id)
-            .orElseThrow(() -> new IllegalStateException("Appointment not found"));
-        if (appointment.getStatus() != AppointmentStatus.CANCELLED) {
-            throw new IllegalStateException("Only cancelled appointments can be rebooked");
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found"));
+        if (appointment.getStatus() != AppointmentStatus.CANCELLED && appointment.getStatus() != AppointmentStatus.REBOOK_PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only cancelled or pending-rebook appointments can be rebooked");
         }
         ensureCanAccess(appointment);
-        Long newDoctorId = ((Number) body.get("doctorId")).longValue();
-        Doctor newDoctor = doctorRepository.findById(newDoctorId)
-            .orElseThrow(() -> new IllegalStateException("Doctor not found"));
-        if (!Boolean.TRUE.equals(newDoctor.getActive())) {
-            throw new IllegalStateException("Selected doctor is not available");
+        Object doctorIdRaw = body.get("doctorId");
+        if (doctorIdRaw == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "doctorId is required");
         }
-        appointment.setDoctor(newDoctor);
-        appointment.setStatus(AppointmentStatus.PENDING);
+        Long newDoctorId = doctorIdRaw instanceof Number
+            ? ((Number) doctorIdRaw).longValue()
+            : Long.parseLong(doctorIdRaw.toString());
+        Doctor newDoctor = doctorRepository.findById(newDoctorId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Doctor not found"));
+        if (Boolean.FALSE.equals(newDoctor.getActive())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selected doctor is not available");
+        }
+        // Store request — only scalar fields change, no entity references modified
+        appointment.setPendingDoctorId(newDoctorId);
+        appointment.setStatus(AppointmentStatus.REBOOK_PENDING);
+        appointmentRepository.save(appointment);
+
+        // Notify the requested doctor and all admins
+        try {
+            User currentUser = currentUser();
+            String patientName = currentUser.getFirstName() != null
+                ? currentUser.getFirstName() + " " + (currentUser.getLastName() != null ? currentUser.getLastName() : "")
+                : currentUser.getLogin();
+            String msg = "Patient " + patientName.strip() + " has requested you as their new doctor for an appointment on "
+                + appointment.getAppointmentDate() + " at " + appointment.getAppointmentTime() + ". Please review and approve or reject.";
+            userRepository.findOneByEmailIgnoreCase(newDoctor.getEmail()).ifPresent(doctorUser ->
+                notificationService.createNotification(doctorUser.getId(), "Rebook Request", msg, "REBOOK_REQUEST", appointment.getId())
+            );
+        } catch (Exception e) {
+            log.warn("Failed to send rebook request notification for appointment id={}: {}", id, e.getMessage(), e);
+        }
+
+        AppointmentDTO dto = toDto(appointment);
+        dto.setPendingDoctorName(newDoctor.getFullName());
+        dto.setMessage("Your rebook request has been submitted. Waiting for approval.");
+        return ResponseEntity.ok(dto);
+    }
+
+    // Doctor or Admin: approve the rebook request
+    @Transactional
+    @PutMapping("/appointments/{id}/approve-rebook")
+    public ResponseEntity<AppointmentDTO> approveRebook(@PathVariable Long id) {
+        Appointment appointment = appointmentRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found"));
+        if (appointment.getStatus() != AppointmentStatus.REBOOK_PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment is not awaiting rebook approval");
+        }
+        if (appointment.getPendingDoctorId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No pending doctor on this appointment");
+        }
+        ensureCanApproveRebook(appointment);
+
+        Doctor newDoctor = doctorRepository.findById(appointment.getPendingDoctorId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Requested doctor not found"));
+        if (Boolean.FALSE.equals(newDoctor.getActive())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Requested doctor is no longer available");
+        }
+
         // Clear system cancellation note
         String notes = appointment.getNotes();
         if (notes != null) {
             notes = notes.replaceAll("(?m)\\[SYSTEM\\]:.*?(\\n|$)", "").strip();
             appointment.setNotes(notes.isEmpty() ? null : notes);
         }
+
+        appointment.setDoctor(newDoctor);
+        if (newDoctor.getHospital() != null) {
+            appointment.setHospital(newDoctor.getHospital());
+        }
+        appointment.setStatus(AppointmentStatus.PENDING);
+        appointment.setPendingDoctorId(null);
+        // Within @Transactional — entities are managed; dirty check flushes automatically
         appointmentRepository.save(appointment);
-        // Notify the new doctor
-        userRepository.findOneByEmailIgnoreCase(newDoctor.getEmail()).ifPresent(doctorUser ->
-            notificationService.createNotification(
-                doctorUser.getId(),
-                "New Appointment",
-                "A patient has rebooked an appointment on " + appointment.getAppointmentDate() + " at " + appointment.getAppointmentTime() + ".",
-                "APPOINTMENT_BOOKED",
-                appointment.getId()
-            )
-        );
+
+        // Notify patient
+        try {
+            if (appointment.getUser() != null) {
+                notificationService.createNotification(
+                    appointment.getUser().getId(),
+                    "Rebook Approved",
+                    "Your rebook request has been approved. Your new doctor is " + newDoctor.getFullName()
+                        + " on " + appointment.getAppointmentDate() + " at " + appointment.getAppointmentTime() + ".",
+                    "REBOOK_APPROVED",
+                    appointment.getId()
+                );
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send rebook approval notification for appointment id={}: {}", id, e.getMessage(), e);
+        }
+
         AppointmentDTO dto = toDto(appointment);
-        dto.setMessage("Appointment rebooked successfully");
+        dto.setMessage("Rebook request approved successfully");
         return ResponseEntity.ok(dto);
+    }
+
+    // Patient: cancel their own pending rebook request
+    @PutMapping("/appointments/{id}/cancel-rebook")
+    public ResponseEntity<AppointmentDTO> cancelRebookRequest(@PathVariable Long id) {
+        Appointment appointment = appointmentRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found"));
+        if (appointment.getStatus() != AppointmentStatus.REBOOK_PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment is not awaiting rebook approval");
+        }
+        String login = currentLogin();
+        boolean owner = appointment.getUser() != null && login.equalsIgnoreCase(appointment.getUser().getLogin());
+        if (!owner && !SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_ADMIN")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+        }
+        appointment.setPendingDoctorId(null);
+        appointment.setStatus(AppointmentStatus.CANCELLED);
+        appointmentRepository.save(appointment);
+        AppointmentDTO dto = toDto(appointment);
+        dto.setMessage("Rebook request cancelled");
+        return ResponseEntity.ok(dto);
+    }
+
+    // Doctor or Admin: reject the rebook request
+    @PutMapping("/appointments/{id}/reject-rebook")
+    public ResponseEntity<AppointmentDTO> rejectRebook(@PathVariable Long id) {
+        Appointment appointment = appointmentRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found"));
+        if (appointment.getStatus() != AppointmentStatus.REBOOK_PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment is not awaiting rebook approval");
+        }
+        ensureCanApproveRebook(appointment);
+
+        appointment.setPendingDoctorId(null);
+        appointment.setStatus(AppointmentStatus.CANCELLED);
+        appointmentRepository.save(appointment);
+
+        // Notify patient
+        try {
+            if (appointment.getUser() != null) {
+                notificationService.createNotification(
+                    appointment.getUser().getId(),
+                    "Rebook Rejected",
+                    "Your rebook request for the appointment on " + appointment.getAppointmentDate()
+                        + " at " + appointment.getAppointmentTime() + " has been rejected. You may select a different doctor.",
+                    "REBOOK_REJECTED",
+                    appointment.getId()
+                );
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send rebook rejection notification for appointment id={}: {}", id, e.getMessage(), e);
+        }
+
+        AppointmentDTO dto = toDto(appointment);
+        dto.setMessage("Rebook request rejected");
+        return ResponseEntity.ok(dto);
+    }
+
+    // Returns REBOOK_PENDING appointments for the current doctor (to approve/reject)
+    @GetMapping("/appointments/rebook-requests")
+    public ResponseEntity<List<AppointmentDTO>> getRebookRequests() {
+        if (!SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_DOCTOR", "ROLE_ADMIN")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+        }
+        List<Appointment> appointments;
+        if (SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_ADMIN")) {
+            appointments = appointmentRepository.findByStatus(AppointmentStatus.REBOOK_PENDING);
+            log.debug("[getRebookRequests] ADMIN branch: found {} REBOOK_PENDING appointments", appointments.size());
+        } else {
+            User user = currentUser();
+            Doctor doctor = doctorRepository.findByEmail(user.getEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Doctor profile not found"));
+            log.debug("[getRebookRequests] DOCTOR branch: userEmail={}, doctorId={}", user.getEmail(), doctor.getId());
+            appointments = appointmentRepository.findByPendingDoctorIdAndStatus(doctor.getId(), AppointmentStatus.REBOOK_PENDING);
+            log.debug("[getRebookRequests] found {} appointments for doctorId={}", appointments.size(), doctor.getId());
+        }
+        List<AppointmentDTO> dtos = appointments.stream().map(this::toDtoWithPendingDoctor).toList();
+        return ResponseEntity.ok(dtos);
     }
 
     @GetMapping("/appointments/{doctorId}/available-slots")
@@ -292,7 +443,7 @@ public class AppointmentResource {
         List<String> booked = appointmentRepository
             .findByDoctorIdAndAppointmentDate(doctorId, date)
             .stream()
-            .filter(a -> a.getStatus() != AppointmentStatus.CANCELLED)
+            .filter(a -> a.getStatus() != AppointmentStatus.CANCELLED && a.getStatus() != AppointmentStatus.REBOOK_PENDING)
             .map(a -> a.getAppointmentTime().toString().substring(0, 5))
             .toList();
         return baseSlots.stream().filter(slot -> !booked.contains(slot)).toList();
@@ -343,7 +494,27 @@ public class AppointmentResource {
         dto.setPrice(appointment.getPrice());
         dto.setPaymentStatus(appointment.getPaymentStatus());
         dto.setCreatedAt(appointment.getCreatedAt());
+        dto.setPendingDoctorId(appointment.getPendingDoctorId());
         return dto;
+    }
+
+    private AppointmentDTO toDtoWithPendingDoctor(Appointment appointment) {
+        AppointmentDTO dto = toDto(appointment);
+        if (appointment.getPendingDoctorId() != null) {
+            doctorRepository.findById(appointment.getPendingDoctorId())
+                .ifPresent(d -> dto.setPendingDoctorName(d.getFullName()));
+        }
+        return dto;
+    }
+
+    private void ensureCanApproveRebook(Appointment appointment) {
+        if (SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_ADMIN")) return;
+        if (SecurityUtils.hasCurrentUserAnyOfAuthorities("ROLE_DOCTOR")) {
+            User user = currentUser();
+            Doctor doctor = doctorRepository.findByEmail(user.getEmail()).orElse(null);
+            if (doctor != null && doctor.getId().equals(appointment.getPendingDoctorId())) return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
     }
 
     private AppointmentDTO toDetailDto(Appointment appointment) {
@@ -378,7 +549,7 @@ public class AppointmentResource {
             isDoctor = appointment.getDoctor() != null && user.getEmail().equalsIgnoreCase(appointment.getDoctor().getEmail());
         }
         if (!owner && !admin && !isDoctor) {
-            throw new IllegalStateException("Unauthorized");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
         }
     }
 

@@ -32,6 +32,7 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -133,8 +134,18 @@ public class AuthResource {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Map<String, String>> logout() {
-        SecurityUtils.getCurrentUserJWT().ifPresent(token -> tokenBlacklistService.revoke(token, null));
+    public ResponseEntity<Map<String, String>> logout(HttpServletRequest request) {
+        // Try to revoke the token from the Authorization header (skip if invalid/missing)
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            try {
+                jwtDecoder.decode(token);
+                tokenBlacklistService.revoke(token, null);
+            } catch (Exception ignored) {
+                // Invalid or deactivated-user token — still clear the cookie below
+            }
+        }
         SecurityContextHolder.clearContext();
         return ResponseEntity.ok()
             .header("Set-Cookie", clearAccessTokenCookie().toString())

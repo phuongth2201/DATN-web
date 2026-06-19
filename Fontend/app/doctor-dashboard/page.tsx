@@ -37,6 +37,8 @@ export default function DoctorDashboard() {
   const { toast } = useToast();
   
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [rebookRequests, setRebookRequests] = useState<any[]>([]);
+  const [rebookActionId, setRebookActionId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [greeting, setGreeting] = useState('');
   
@@ -133,6 +135,16 @@ export default function DoctorDashboard() {
       prevPendingCountRef.current = currentPending;
 
       setAppointments(newAppointments);
+
+      // Load rebook requests (appointments where this doctor is pendingDoctorId)
+      try {
+        const rebookRes = await apiService.getRebookRequests();
+        console.log('[getRebookRequests] response:', rebookRes);
+        const list = Array.isArray(rebookRes) ? rebookRes : rebookRes?.data || [];
+        setRebookRequests(list);
+      } catch (rebookErr: any) {
+        console.warn('[getRebookRequests] error:', rebookErr?.response?.status, rebookErr?.response?.data);
+      }
     } catch (error) {
       console.error('Failed to fetch appointments:', error);
     } finally {
@@ -156,6 +168,28 @@ export default function DoctorDashboard() {
         description: 'Failed to update status',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleRebookAction = async (aptId: number, action: 'approve' | 'reject') => {
+    setRebookActionId(aptId);
+    try {
+      if (action === 'approve') {
+        await apiService.approveRebook(aptId);
+        toast({ title: 'Rebook Approved', description: 'The appointment has been transferred to you.' });
+      } else {
+        await apiService.rejectRebook(aptId);
+        toast({ title: 'Rebook Rejected', description: 'The patient will be notified.' });
+      }
+      fetchAppointments();
+    } catch (error: any) {
+      toast({
+        title: 'Action Failed',
+        description: error?.response?.data?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setRebookActionId(null);
     }
   };
 
@@ -392,6 +426,66 @@ export default function DoctorDashboard() {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main Content - Schedule */}
             <div className="lg:col-span-2 space-y-8">
+              {/* Rebook Requests — patient wants this doctor */}
+              {rebookRequests.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-6">
+                    <Activity className="text-purple-500 w-6 h-6" />
+                    <h2 className="text-2xl font-bold text-slate-800">Rebook Requests</h2>
+                    <Badge variant="secondary" className="ml-2 bg-purple-100 text-purple-800">{rebookRequests.length}</Badge>
+                  </div>
+                  <div className="space-y-4">
+                    {rebookRequests.map(apt => (
+                      <Card
+                        key={apt.id}
+                        className="border border-purple-100 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden relative"
+                      >
+                        <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-400" />
+                        <CardContent className="p-6">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                              <h3 className="text-lg font-bold text-slate-800 mb-1">
+                                {apt.patientName || `Patient #${apt.patientId}`}
+                              </h3>
+                              <div className="flex flex-wrap gap-4 text-sm font-medium text-slate-600 mb-2">
+                                <span className="flex items-center gap-1">
+                                  <Calendar size={14} className="text-slate-400" />
+                                  {new Date(apt.appointmentDate).toLocaleDateString()}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock size={14} className="text-slate-400" />
+                                  {formatAMPM(apt.appointmentTime)}
+                                </span>
+                              </div>
+                              <p className="text-sm text-slate-500">
+                                Previous doctor: <span className="font-semibold text-slate-700">{apt.doctorName || 'N/A'}</span>
+                              </p>
+                            </div>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                              <Button
+                                variant="outline"
+                                className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50"
+                                disabled={rebookActionId === apt.id}
+                                onClick={() => handleRebookAction(apt.id, 'reject')}
+                              >
+                                {rebookActionId === apt.id ? '...' : 'Reject'}
+                              </Button>
+                              <Button
+                                className="flex-1 bg-purple-600 hover:bg-purple-700 shadow-md"
+                                disabled={rebookActionId === apt.id}
+                                onClick={() => handleRebookAction(apt.id, 'approve')}
+                              >
+                                {rebookActionId === apt.id ? '...' : 'Accept'}
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* Pending Appointments Section */}
               {pendingPage.length > 0 && (
                 <section>

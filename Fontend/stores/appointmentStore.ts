@@ -17,6 +17,8 @@ export interface Appointment {
   createdAt: string;
   user?: any;
   price?: number;
+  pendingDoctorId?: number | null;
+  pendingDoctorName?: string | null;
 }
 
 interface AppointmentStore {

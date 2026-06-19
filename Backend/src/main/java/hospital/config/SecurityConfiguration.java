@@ -50,6 +50,10 @@ public class SecurityConfiguration {
     public BearerTokenResolver bearerTokenResolver() {
         DefaultBearerTokenResolver headerResolver = new DefaultBearerTokenResolver();
         return request -> {
+            // Skip token extraction for logout so deactivated users can still clear their session cookie
+            if ("/api/auth/logout".equals(request.getRequestURI())) {
+                return null;
+            }
             String headerToken = headerResolver.resolve(request);
             if (headerToken != null) {
                 return headerToken;
@@ -100,7 +104,7 @@ public class SecurityConfiguration {
                     .requestMatchers(mvc.pattern(HttpMethod.GET, "/api/authenticate")).permitAll()
                     .requestMatchers(mvc.pattern(HttpMethod.POST, "/api/auth/register")).permitAll()
                     .requestMatchers(mvc.pattern(HttpMethod.POST, "/api/auth/login")).permitAll()
-                    .requestMatchers(mvc.pattern(HttpMethod.POST, "/api/auth/logout")).authenticated()
+                    .requestMatchers(mvc.pattern(HttpMethod.POST, "/api/auth/logout")).permitAll()
                     .requestMatchers(mvc.pattern(HttpMethod.POST, "/api/auth/refresh")).permitAll()
                     .requestMatchers(mvc.pattern("/api/register")).permitAll()
                     .requestMatchers(mvc.pattern("/api/activate")).permitAll()

@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Clock, User, AlertCircle, CheckCircle, XCircle, CreditCard, ArrowUpDown, AlertTriangle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { apiService } from '@/services/api';
 import { PaymentModal } from '@/components/PaymentModal';
 import { useState } from 'react';
 
@@ -17,12 +18,15 @@ import { useState } from 'react';
 const isSystemCancelled = (apt: any) =>
   apt.status === 'CANCELLED' && typeof apt.notes === 'string' && apt.notes.includes('[SYSTEM]: Doctor is no longer available');
 
+const isRebookPending = (apt: any) => apt.status === 'REBOOK_PENDING';
+
 export default function AppointmentsPage() {
   const router = useRouter();
   const { isAuthenticated, isInitialized, user } = useAuthStore();
   const { appointments, isLoading, fetchAppointments } = useAppointmentStore();
   const { toast } = useToast();
   const [selectedAptToPay, setSelectedAptToPay] = useState<any>(null);
+  const [cancellingRebook, setCancellingRebook] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterDate, setFilterDate] = useState<string>('');
   const [sortBy, setSortBy] = useState<'date' | 'created'>('created');
@@ -48,6 +52,23 @@ export default function AppointmentsPage() {
     return null;
   }
 
+  const handleCancelRebook = async (aptId: string) => {
+    setCancellingRebook(aptId);
+    try {
+      await apiService.cancelRebookRequest(aptId);
+      toast({ title: 'Request Cancelled', description: 'Your rebook request has been withdrawn.' });
+      fetchAppointments();
+    } catch (error: any) {
+      toast({
+        title: 'Failed to Cancel',
+        description: error?.response?.data?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setCancellingRebook(null);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'CONFIRMED':
@@ -56,6 +77,8 @@ export default function AppointmentsPage() {
         return 'bg-secondary/10 text-secondary border-secondary/20';
       case 'CANCELLED':
         return 'bg-destructive/10 text-destructive border-destructive/20';
+      case 'REBOOK_PENDING':
+        return 'bg-amber-100 text-amber-800 border-amber-300';
       default:
         return 'bg-muted text-muted-foreground';
     }
@@ -76,9 +99,10 @@ export default function AppointmentsPage() {
 
   const STATUS_ORDER: Record<string, number> = { CONFIRMED: 0, PENDING: 1, COMPLETED: 2, CANCELLED: 3 };
 
-  // Separate system-cancelled (doctor deleted) from normal appointments
+  // Separate system-cancelled (doctor deleted) and rebook-pending from normal appointments
   const needsAttention = appointments.filter(isSystemCancelled);
-  const normalAppointments = appointments.filter(apt => !isSystemCancelled(apt));
+  const rebookPendingApts = appointments.filter(isRebookPending);
+  const normalAppointments = appointments.filter(apt => !isSystemCancelled(apt) && !isRebookPending(apt));
 
   const sortedAppointments = [...normalAppointments].sort((a, b) => {
     if (sortByStatus) {
@@ -154,6 +178,61 @@ export default function AppointmentsPage() {
             </div>
           )}
 
+          {/* Rebook Pending — Awaiting Review */}
+          {!isLoading && rebookPendingApts.length > 0 && (
+            <div className="mb-8 space-y-3">
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="w-5 h-5 text-amber-600" />
+                <h2 className="text-base font-bold text-amber-800">Awaiting Doctor Approval</h2>
+                <span className="ml-1 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">
+                  {rebookPendingApts.length}
+                </span>
+              </div>
+              {rebookPendingApts.map((apt) => (
+                <div
+                  key={apt.id}
+                  className="rounded-2xl border border-amber-200 bg-amber-50 p-5 flex flex-col md:flex-row md:items-center gap-4"
+                >
+                  <div className="flex-1 space-y-1">
+                    <p className="font-semibold text-amber-900">
+                      Rebook request submitted — waiting for{' '}
+                      <span className="underline">{apt.pendingDoctorName || `Doctor #${apt.pendingDoctorId}`}</span> to respond
+                    </p>
+                    <p className="text-sm text-amber-700">
+                      {new Date(apt.appointmentDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                      {' · '}{apt.appointmentTime}
+                    </p>
+                    <p className="text-xs text-amber-600 font-medium">Original doctor: {apt.doctorName}</p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      variant="outline"
+                      className="border-amber-400 text-amber-800 hover:bg-amber-100"
+                      onClick={() => router.push(`/doctors?rebookId=${apt.id}`)}
+                    >
+                      Change Doctor
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-red-300 text-red-700 hover:bg-red-50"
+                      disabled={cancellingRebook === apt.id}
+                      onClick={() => handleCancelRebook(apt.id)}
+                    >
+                      {cancellingRebook === apt.id ? (
+                        <span className="flex items-center gap-2">
+                          <span className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                          Cancelling...
+                        </span>
+                      ) : (
+                        'Cancel Request'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Filter Section */}
           {!isLoading && normalAppointments.length > 0 && (
             <div className="flex flex-col md:flex-row md:items-center gap-4 mb-8">
@@ -224,7 +303,7 @@ export default function AppointmentsPage() {
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               <p className="text-foreground/60 mt-4 text-lg">Loading your appointments...</p>
             </div>
-          ) : normalAppointments.length === 0 && needsAttention.length === 0 ? (
+          ) : normalAppointments.length === 0 && needsAttention.length === 0 && rebookPendingApts.length === 0 ? (
             <Card className="border-0 shadow-lg bg-muted/30">
               <CardContent className="p-16 text-center">
                 <Calendar className="w-20 h-20 mx-auto text-muted-foreground mb-6 opacity-40" />

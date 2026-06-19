@@ -331,6 +331,22 @@ class ApiService {
     return (await this.client.put(`/api/appointments/${appointmentId}/rebook`, { doctorId })).data;
   }
 
+  async approveRebook(appointmentId: number | string) {
+    return (await this.client.put(`/api/appointments/${appointmentId}/approve-rebook`)).data;
+  }
+
+  async rejectRebook(appointmentId: number | string) {
+    return (await this.client.put(`/api/appointments/${appointmentId}/reject-rebook`)).data;
+  }
+
+  async cancelRebookRequest(appointmentId: number | string) {
+    return (await this.client.put(`/api/appointments/${appointmentId}/cancel-rebook`)).data;
+  }
+
+  async getRebookRequests() {
+    return (await this.client.get('/api/appointments/rebook-requests')).data;
+  }
+
   async getAllAppointments(page = 1, limit = 10, status = '') {
     try {
       return (await this.client.get('/api/admin/appointments', {
@@ -397,6 +413,7 @@ class ApiService {
       phoneNumber: data.phoneNumber || '',
       authorities: data.authorities || ['ROLE_USER'],
       langKey: 'en',
+      activated: true,
       password: data.password || 'Hospital@123',
     };
     const res = await this.client.post('/api/admin/users', payload);
